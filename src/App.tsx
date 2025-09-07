@@ -34,7 +34,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
   const [viewDropdownOpen, setViewDropdownOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showCompletedTasks, setShowCompletedTasks] = useState(true);
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   
   const { 
     taskLists, 

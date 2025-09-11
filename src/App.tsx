@@ -24,6 +24,8 @@ import { TaskList } from './components/TaskList';
 import { TagView } from './components/TagView';
 import { ProjectView } from './components/ProjectView';
 import { PriorityView } from './components/PriorityView';
+import { GlobalScratchpad } from './components/GlobalScratchpad';
+import { FloatingScratchpadButton } from './components/FloatingScratchpadButton';
 import { CompactListSelector } from './components/CompactListSelector';
 import { Auth } from './components/Auth';
 import { SettingsPage } from './pages/SettingsPage';
@@ -35,6 +37,7 @@ export default function App() {
   const [viewDropdownOpen, setViewDropdownOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [showScratchpad, setShowScratchpad] = useState(false);
   
   const { 
     taskLists, 
@@ -329,6 +332,15 @@ export default function App() {
             {renderContent()}
           </main>
         </div>
+        
+        {/* Floating Scratchpad Button */}
+        <FloatingScratchpadButton onClick={() => setShowScratchpad(true)} />
+        
+        {/* Global Scratchpad Modal */}
+        <GlobalScratchpad 
+          isOpen={showScratchpad} 
+          onClose={() => setShowScratchpad(false)} 
+        />
       </div>
     </div>
   );

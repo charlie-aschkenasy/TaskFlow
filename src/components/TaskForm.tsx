@@ -22,6 +22,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
   const { projects, addProject } = useProjects();
   const { taskLists, activeListId, addTaskList, getPersonalListId } = useTaskLists();
   const { availableTags } = useTags();
+  const [showAdditionalFields, setShowAdditionalFields] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -108,6 +109,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
     setRecurringInterval(1);
     setRecurringDaysOfWeek([]);
     setRecurringEndDate('');
+    setShowAdditionalFields(false);
     
     if (onCancel) onCancel();
   };
@@ -155,6 +157,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
     setShowNewProjectForm(false);
     setNewListName('');
     setNewProjectName('');
+    setShowAdditionalFields(false);
     
     if (onCancel) onCancel();
   };
@@ -216,7 +219,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
         {/* List Selection */}
         <div>
           <label htmlFor="list" className="block text-sm font-medium text-gray-700 mb-1">
-            List *
+            List
           </label>
           <div className="flex gap-2">
             <select
@@ -304,154 +307,6 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
             </form>
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Attachments
-          </label>
-          <AttachmentManager
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Reminders
-          </label>
-          <ReminderManager
-            reminders={reminders}
-            onRemindersChange={setReminders}
-            dueDate={dueDate}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tags
-          </label>
-          <TagInput
-            selectedTags={tags}
-            onTagsChange={setTags}
-            placeholder="Add tags (urgent, study, exam, etc.)"
-          />
-        </div>
-
-        {/* Project Selection */}
-        <div>
-          <label htmlFor="project" className="block text-sm font-medium text-gray-700 mb-1">
-            Project *
-          </label>
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <select
-                id="project"
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-              >
-                {projects.map(proj => (
-                  <option key={proj.id} value={proj.id}>
-                    {proj.name}
-                  </option>
-                ))}
-              </select>
-              {project && (
-                <div className="absolute right-3 top-2.5">
-                  <ProjectBadge project={projects.find(p => p.id === project)} size="sm" />
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowNewProjectForm(!showNewProjectForm)}
-              className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-              title="Create new project"
-            >
-              <Tag size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* New Project Form */}
-        {showNewProjectForm && (
-          <div className="p-4 bg-gray-50 rounded-lg border space-y-3">
-            <h4 className="text-sm font-medium text-gray-700">Create New Project</h4>
-            <form onSubmit={handleCreateNewProject} className="space-y-3">
-              <input
-                type="text"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="Project name..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <div className="grid grid-cols-8 gap-2">
-                {predefinedColors.map(color => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setNewProjectColor(color)}
-                    className={`w-6 h-6 rounded border-2 transition-all ${
-                      newProjectColor === color
-                        ? 'border-gray-800 scale-110'
-                        : 'border-gray-300 hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors"
-                >
-                  Create
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowNewProjectForm(false)}
-                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-          <div>
-            <label htmlFor="timeFrame" className="block text-sm font-medium text-gray-700 mb-1">
-              Time Frame
-            </label>
-            <select
-              id="timeFrame"
-              value={timeFrame}
-              onChange={(e) => setTimeFrame(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
-              Priority
-            </label>
-            <select
-              id="priority"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-        </div>
 
         <div>
           <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
@@ -467,105 +322,285 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
           />
         </div>
 
-        {/* Recurring Task Settings */}
-        <div className="border-t pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              id="isRecurring"
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-              Make this a recurring task
-            </label>
+        {/* Additional Information Toggle */}
+        {!showAdditionalFields && (
+          <div className="border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdditionalFields(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Plus size={16} />
+              Additional Information
+            </button>
           </div>
+        )}
 
-          {isRecurring && (
-            <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Repeat every
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={recurringInterval}
-                      onChange={(e) => setRecurringInterval(parseInt(e.target.value) || 1)}
-                      className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+        {/* Additional Fields */}
+        {showAdditionalFields && (
+          <div className="border-t pt-4 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-medium text-gray-700">Additional Information</h4>
+              <button
+                type="button"
+                onClick={() => setShowAdditionalFields(false)}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Hide
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Attachments
+                </label>
+                <AttachmentManager
+                  attachments={attachments}
+                  onAttachmentsChange={setAttachments}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reminders
+                </label>
+                <ReminderManager
+                  reminders={reminders}
+                  onRemindersChange={setReminders}
+                  dueDate={dueDate}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tags
+                </label>
+                <TagInput
+                  selectedTags={tags}
+                  onTagsChange={setTags}
+                  placeholder="Add tags (urgent, study, exam, etc.)"
+                />
+              </div>
+
+              {/* Project Selection */}
+              <div>
+                <label htmlFor="project" className="block text-sm font-medium text-gray-700 mb-1">
+                  Project
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
                     <select
-                      value={recurringFrequency}
-                      onChange={(e) => setRecurringFrequency(e.target.value as any)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="project"
+                      value={project}
+                      onChange={(e) => setProject(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
                     >
-                      <option value="daily">Day(s)</option>
-                      <option value="weekly">Week(s)</option>
-                      <option value="monthly">Month(s)</option>
-                      <option value="yearly">Year(s)</option>
-                      <option value="custom">Custom</option>
+                      {projects.map(proj => (
+                        <option key={proj.id} value={proj.id}>
+                          {proj.name}
+                        </option>
+                      ))}
                     </select>
+                    {project && (
+                      <div className="absolute right-3 top-2.5">
+                        <ProjectBadge project={projects.find(p => p.id === project)} size="sm" />
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End date (optional)
-                  </label>
-                  <input
-                    type="date"
-                    value={recurringEndDate}
-                    onChange={(e) => setRecurringEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    min={new Date().toISOString().split('T')[0]}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewProjectForm(!showNewProjectForm)}
+                    className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    title="Create new project"
+                  >
+                    <Tag size={16} />
+                  </button>
                 </div>
               </div>
 
-              {(recurringFrequency === 'weekly' || recurringFrequency === 'custom') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Repeat on days
-                  </label>
-                  <div className="flex gap-2">
-                    {daysOfWeekLabels.map((day, index) => (
+              {/* New Project Form */}
+              {showNewProjectForm && (
+                <div className="md:col-span-2 p-4 bg-gray-50 rounded-lg border space-y-3">
+                  <h4 className="text-sm font-medium text-gray-700">Create New Project</h4>
+                  <form onSubmit={handleCreateNewProject} className="space-y-3">
+                    <input
+                      type="text"
+                      value={newProjectName}
+                      onChange={(e) => setNewProjectName(e.target.value)}
+                      placeholder="Project name..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <div className="grid grid-cols-8 gap-2">
+                      {predefinedColors.map(color => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setNewProjectColor(color)}
+                          className={`w-6 h-6 rounded border-2 transition-all ${
+                            newProjectColor === color
+                              ? 'border-gray-800 scale-110'
+                              : 'border-gray-300 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
                       <button
-                        key={day}
-                        type="button"
-                        onClick={() => handleDayOfWeekToggle(index)}
-                        className={`px-3 py-2 text-sm rounded-md border transition-colors ${
-                          recurringDaysOfWeek.includes(index)
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
+                        type="submit"
+                        className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors"
                       >
-                        {day}
+                        Create
                       </button>
-                    ))}
-                  </div>
-                  {recurringDaysOfWeek.length === 0 && (
-                    <p className="text-sm text-red-600 mt-1">
-                      Please select at least one day
-                    </p>
-                  )}
+                      <button
+                        type="button"
+                        onClick={() => setShowNewProjectForm(false)}
+                        className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
 
-              <div className="text-sm text-gray-600 bg-white p-3 rounded border">
-                <strong>Preview:</strong> {getRecurrencePreview()}
+              <div>
+                <label htmlFor="timeFrame" className="block text-sm font-medium text-gray-700 mb-1">
+                  Time Frame
+                </label>
+                <select
+                  id="timeFrame"
+                  value={timeFrame}
+                  onChange={(e) => setTimeFrame(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  id="priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Recurring Task Settings */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="checkbox"
+                  id="isRecurring"
+                  checked={isRecurring}
+                  onChange={(e) => setIsRecurring(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                  Make this a recurring task
+                </label>
+              </div>
+
+              {isRecurring && (
+                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Repeat every
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={recurringInterval}
+                          onChange={(e) => setRecurringInterval(parseInt(e.target.value) || 1)}
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <select
+                          value={recurringFrequency}
+                          onChange={(e) => setRecurringFrequency(e.target.value as any)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="daily">Day(s)</option>
+                          <option value="weekly">Week(s)</option>
+                          <option value="monthly">Month(s)</option>
+                          <option value="yearly">Year(s)</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        End date (optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={recurringEndDate}
+                        onChange={(e) => setRecurringEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+                  </div>
+
+                  {(recurringFrequency === 'weekly' || recurringFrequency === 'custom') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Repeat on days
+                      </label>
+                      <div className="flex gap-2">
+                        {daysOfWeekLabels.map((day, index) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => handleDayOfWeekToggle(index)}
+                            className={`px-3 py-2 text-sm rounded-md border transition-colors ${
+                              recurringDaysOfWeek.includes(index)
+                                ? 'bg-blue-500 text-white border-blue-500'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                      {recurringDaysOfWeek.length === 0 && (
+                        <p className="text-sm text-red-600 mt-1">
+                          Please select at least one day
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="text-sm text-gray-600 bg-white p-3 rounded border">
+                    <strong>Preview:</strong> {getRecurrencePreview()}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            disabled={isRecurring && (recurringFrequency === 'weekly' || recurringFrequency === 'custom') && recurringDaysOfWeek.length === 0}
+            disabled={showAdditionalFields && isRecurring && (recurringFrequency === 'weekly' || recurringFrequency === 'custom') && recurringDaysOfWeek.length === 0}
             className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             Create Task

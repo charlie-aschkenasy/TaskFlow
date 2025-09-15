@@ -23,6 +23,7 @@ export function CalendarView({
   const [currentDate, setCurrentDate] = useState(new Date());
                     <div className={`text-sm font-medium mb-1 ${
                       isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                    }
   // Get all tasks including subtasks for calendar display
   const getAllTasksIncludingSubtasks = (taskList: Task[]): Task[] => {
     const allTasks: Task[] = [];
@@ -328,6 +329,7 @@ export function CalendarView({
                     >
                     <div className={`text-sm font-medium mb-1 ${
                       isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                    }
                     <div className={`text-sm font-medium mb-1 ${
                       isTodayDate ? 'text-blue-600' : 'text-gray-900'
                     }`}>
@@ -360,6 +362,9 @@ export function CalendarView({
                       )}
                     </button>
                   );
+                }
+                )
+                }
                 })}
               </div>
             </div>
@@ -368,4 +373,6 @@ export function CalendarView({
       </div>
     </div>
   );
+}
+  )
 }

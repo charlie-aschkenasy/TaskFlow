@@ -325,8 +325,8 @@ export function CalendarView({
                         isSelected
                           ? 'border-blue-500 bg-blue-50'
                           : isTodayDate
-                          ? 'border-blue-300 bg-blue-100'
-                          : 'border-gray-200 bg-white hover:bg-gray-50'
+                          ? 'border-blue-300 bg-blue-25'
+                        : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <div className={`text-sm font-medium mb-1 ${

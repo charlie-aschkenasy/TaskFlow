@@ -10,7 +10,8 @@ import {
   ChevronDown,
   Settings,
   Tag,
-  FolderOpen
+  FolderOpen,
+  BookOpen
 } from 'lucide-react';
 import { AlertTriangle } from 'lucide-react';
 import { ViewMode } from './types';
@@ -24,6 +25,8 @@ import { TaskList } from './components/TaskList';
 import { TagView } from './components/TagView';
 import { ProjectView } from './components/ProjectView';
 import { PriorityView } from './components/PriorityView';
+import { EventView } from './components/EventView';
+import { AssignmentView } from './components/AssignmentView';
 import { GlobalScratchpad } from './components/GlobalScratchpad';
 import { FloatingScratchpadButton } from './components/FloatingScratchpadButton';
 import { CompactListSelector } from './components/CompactListSelector';
@@ -95,6 +98,8 @@ export default function App() {
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
     { id: 'all', name: 'All Tasks', icon: List },
+    { id: 'events', name: 'Events', icon: Calendar },
+    { id: 'assignments', name: 'Assignments', icon: BookOpen },
     { id: 'priority', name: 'Priority View', icon: AlertTriangle },
     { id: 'tags', name: 'Tags View', icon: Tag },
     { id: 'projects', name: 'Projects View', icon: FolderOpen },
@@ -178,6 +183,30 @@ export default function App() {
       case 'priority':
         return (
           <PriorityView
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
+          />
+        );
+      case 'events':
+        return (
+          <EventView
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
+          />
+        );
+      case 'assignments':
+        return (
+          <AssignmentView
             tasks={visibleTasks}
             activeListName={activeListName}
             onToggleTask={toggleTask}

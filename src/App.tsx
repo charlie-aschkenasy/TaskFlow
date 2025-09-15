@@ -97,13 +97,13 @@ export default function App() {
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
-    { id: 'all', name: 'All Tasks', icon: List },
     { id: 'events', name: 'Events', icon: Calendar },
     { id: 'assignments', name: 'Assignments', icon: BookOpen },
-    { id: 'tags', name: 'Tags View', icon: Tag },
-    { id: 'projects', name: 'Projects View', icon: FolderOpen },
+    { id: 'all', name: 'All Tasks', icon: List },
     { id: 'calendar', name: 'Calendar', icon: Calendar },
     { id: 'daily', name: 'Daily', icon: Calendar },
+    { id: 'projects', name: 'Projects View', icon: FolderOpen },
+    { id: 'tags', name: 'Tags View', icon: Tag },
   ];
 
   const currentViewItem = navigation.find(item => item.id === currentView);

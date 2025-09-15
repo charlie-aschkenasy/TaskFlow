@@ -121,6 +121,8 @@ export function AssignmentView({
           onToggle={() => setIsFormOpen(!isFormOpen)}
           defaultType="event"
           hideTypeSelector={true}
+        />
+      </div>
 
       {/* Assignment Sections */}
       <div className="space-y-6">

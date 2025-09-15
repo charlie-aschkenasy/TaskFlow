@@ -113,13 +113,6 @@ export function AssignmentView({
 
       {/* Quick Add Assignment */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-            className={`flex-1 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed ${
-              taskType === 'event'
-                ? 'bg-purple-500 hover:bg-purple-600 focus:ring-purple-500'
-                : taskType === 'assignment'
-                ? 'bg-orange-500 hover:bg-orange-600 focus:ring-orange-500'
-                : 'bg-blue-500 hover:bg-blue-600 focus:ring-blue-500'
-            }`}
         <TaskForm
           onSubmit={handleAddAssignment}
           onCancel={() => setIsFormOpen(false)}

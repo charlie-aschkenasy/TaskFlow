@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { BookOpen, Plus } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import { Task } from '../types';
 import { TaskItem } from './TaskItem';
 import { TaskForm } from './TaskForm';
 import { sortTasks, getAllTasksIncludingSubtasks } from '../utils/taskUtils';
 
-interface AssignmentViewProps {
+interface EventViewProps {
   tasks: Task[];
   activeListName?: string;
   onToggleTask: (id: string) => void;
@@ -15,7 +15,7 @@ interface AssignmentViewProps {
   onAddTask: (task: any, listId?: string) => void;
 }
 
-export function AssignmentView({
+export function EventView({
   tasks,
   activeListName,
   onToggleTask,
@@ -23,50 +23,51 @@ export function AssignmentView({
   onUpdateTask,
   onAddSubtask,
   onAddTask,
-}: AssignmentViewProps) {
+}: EventViewProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  // Get all tasks including subtasks and filter for assignments only
+  // Get all tasks including subtasks and filter for events only
   const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
-  const assignments = allTasksWithSubtasks.filter(task => task.type === 'assignment');
+  const events = allTasksWithSubtasks.filter(task => task.type === 'event');
   
-  // Sort assignments by due date, then by creation date
-  const sortedAssignments = sortTasks(assignments, { 
+  // Sort events by due date, then by creation date
+  const sortedEvents = sortTasks(events, { 
     primary: 'dueDate', 
     primaryAscending: true, 
     secondary: 'createdAt',
     secondaryAscending: false 
   });
 
-  // Separate assignments by status
+  // Separate events by status
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const overdueAssignments = sortedAssignments.filter(assignment => {
-    if (!assignment.dueDate || assignment.completed) return false;
-    const dueDate = new Date(assignment.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    return dueDate < today;
+  const upcomingEvents = sortedEvents.filter(event => {
+    if (event.completed) return false;
+    if (!event.dueDate) return true; // Events without dates go to upcoming
+    const eventDate = new Date(event.dueDate);
+    eventDate.setHours(0, 0, 0, 0);
+    return eventDate >= today;
   });
 
-  const upcomingAssignments = sortedAssignments.filter(assignment => {
-    if (assignment.completed) return false;
-    if (!assignment.dueDate) return true; // Assignments without dates go to upcoming
-    const dueDate = new Date(assignment.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    return dueDate >= today;
+  const pastEvents = sortedEvents.filter(event => {
+    if (event.completed) return false;
+    if (!event.dueDate) return false;
+    const eventDate = new Date(event.dueDate);
+    eventDate.setHours(0, 0, 0, 0);
+    return eventDate < today;
   });
 
-  const completedAssignments = sortedAssignments.filter(assignment => assignment.completed);
+  const completedEvents = sortedEvents.filter(event => event.completed);
 
   // Calculate statistics
-  const totalAssignments = assignments.length;
-  const pendingAssignments = totalAssignments - completedAssignments.length;
+  const totalEvents = events.length;
+  const pendingEvents = totalEvents - completedEvents.length;
 
-  const handleAddAssignment = (assignmentData: any) => {
+  const handleAddEvent = (eventData: any) => {
     onAddTask({
-      ...assignmentData,
-      type: 'assignment', // Force type to be 'assignment'
+      ...eventData,
+      type: 'event', // Force type to be 'event'
     });
   };
 
@@ -75,66 +76,67 @@ export function AssignmentView({
       {/* Header */}
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          {activeListName ? `${activeListName} - Assignments` : 'Assignments'}
+          {activeListName ? `${activeListName} - Events` : 'Events'}
         </h2>
         <p className="text-gray-600 mb-4">
           {activeListName 
-            ? `Manage your ${activeListName.toLowerCase()} assignments and coursework`
-            : 'Manage all your assignments and coursework in one place'
+            ? `Manage your ${activeListName.toLowerCase()} events and appointments`
+            : 'Manage all your events and appointments in one place'
           }
         </p>
         <div className="flex justify-center gap-6 text-sm">
           <div className="text-center">
             <span className="block text-2xl font-semibold text-gray-900">
-              {totalAssignments}
+              {totalEvents}
             </span>
-            <span className="text-gray-500">Total Assignments</span>
+            <span className="text-gray-500">Total Events</span>
           </div>
           <div className="text-center">
             <span className="block text-2xl font-semibold text-red-600">
-              {overdueAssignments.length}
+              {pastEvents.length}
             </span>
-            <span className="text-gray-500">Overdue</span>
+            <span className="text-gray-500">Past</span>
           </div>
           <div className="text-center">
-            <span className="block text-2xl font-semibold text-orange-600">
-              {upcomingAssignments.length}
+            <span className="block text-2xl font-semibold text-purple-600">
+              {upcomingEvents.length}
             </span>
             <span className="text-gray-500">Upcoming</span>
           </div>
           <div className="text-center">
             <span className="block text-2xl font-semibold text-green-600">
-              {completedAssignments.length}
+              {completedEvents.length}
             </span>
             <span className="text-gray-500">Completed</span>
           </div>
         </div>
       </div>
 
-      {/* Quick Add Assignment */}
+      {/* Quick Add Event */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Event</h3>
         <TaskForm
-          onSubmit={handleAddAssignment}
+          onSubmit={handleAddEvent}
           onCancel={() => setIsFormOpen(false)}
           isOpen={isFormOpen}
           onToggle={() => setIsFormOpen(!isFormOpen)}
         />
       </div>
 
-      {/* Assignment Sections */}
+      {/* Event Sections */}
       <div className="space-y-6">
-        {/* Overdue Assignments */}
-        {overdueAssignments.length > 0 && (
+        {/* Past Events */}
+        {pastEvents.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-red-500">
-                  <BookOpen className="text-white" size={20} />
+                  <Calendar className="text-white" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Overdue Assignments</h3>
+                  <h3 className="font-semibold text-gray-900">Past Events</h3>
                   <p className="text-sm text-gray-500">
-                    {overdueAssignments.length} assignment{overdueAssignments.length !== 1 ? 's' : ''} past due
+                    {pastEvents.length} event{pastEvents.length !== 1 ? 's' : ''} that have passed
                   </p>
                 </div>
               </div>
@@ -142,10 +144,10 @@ export function AssignmentView({
             
             <div className="p-4 max-h-80 overflow-y-auto">
               <div className="space-y-3">
-                {overdueAssignments.map(assignment => (
+                {pastEvents.map(event => (
                   <TaskItem
-                    key={assignment.id}
-                    task={assignment}
+                    key={event.id}
+                    task={event}
                     onToggle={onToggleTask}
                     onDelete={onDeleteTask}
                     onUpdate={onUpdateTask}
@@ -157,42 +159,42 @@ export function AssignmentView({
           </div>
         )}
 
-        {/* Upcoming Assignments */}
+        {/* Upcoming Events */}
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500">
-                <BookOpen className="text-white" size={20} />
+              <div className="p-2 rounded-lg bg-purple-500">
+                <Calendar className="text-white" size={20} />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Upcoming Assignments</h3>
+                <h3 className="font-semibold text-gray-900">Upcoming Events</h3>
                 <p className="text-sm text-gray-500">
-                  {upcomingAssignments.length} assignment{upcomingAssignments.length !== 1 ? 's' : ''} to complete
+                  {upcomingEvents.length} event{upcomingEvents.length !== 1 ? 's' : ''} coming up
                 </p>
               </div>
             </div>
           </div>
           
           <div className="p-4 max-h-96 overflow-y-auto">
-            {upcomingAssignments.length === 0 ? (
+            {upcomingEvents.length === 0 ? (
               <div className="text-center py-8">
-                <BookOpen size={32} className="mx-auto text-gray-400 mb-3" />
+                <Calendar size={32} className="mx-auto text-gray-400 mb-3" />
                 <p className="text-center text-gray-500 text-sm">
-                  No upcoming assignments
+                  No upcoming events
                 </p>
                 <button
                   onClick={() => setIsFormOpen(true)}
-                  className="mt-2 text-orange-500 hover:text-orange-600 text-sm font-medium"
+                  className="mt-2 text-purple-500 hover:text-purple-600 text-sm font-medium"
                 >
-                  Add your first assignment
+                  Add your first event
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingAssignments.map(assignment => (
+                {upcomingEvents.map(event => (
                   <TaskItem
-                    key={assignment.id}
-                    task={assignment}
+                    key={event.id}
+                    task={event}
                     onToggle={onToggleTask}
                     onDelete={onDeleteTask}
                     onUpdate={onUpdateTask}
@@ -204,18 +206,18 @@ export function AssignmentView({
           </div>
         </div>
 
-        {/* Completed Assignments */}
-        {completedAssignments.length > 0 && (
+        {/* Completed Events */}
+        {completedEvents.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-green-500">
-                  <BookOpen className="text-white" size={20} />
+                  <Calendar className="text-white" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Completed Assignments</h3>
+                  <h3 className="font-semibold text-gray-900">Completed Events</h3>
                   <p className="text-sm text-gray-500">
-                    {completedAssignments.length} assignment{completedAssignments.length !== 1 ? 's' : ''} completed
+                    {completedEvents.length} event{completedEvents.length !== 1 ? 's' : ''} completed
                   </p>
                 </div>
               </div>
@@ -223,10 +225,10 @@ export function AssignmentView({
             
             <div className="p-4 max-h-80 overflow-y-auto">
               <div className="space-y-3">
-                {completedAssignments.map(assignment => (
+                {completedEvents.map(event => (
                   <TaskItem
-                    key={assignment.id}
-                    task={assignment}
+                    key={event.id}
+                    task={event}
                     onToggle={onToggleTask}
                     onDelete={onDeleteTask}
                     onUpdate={onUpdateTask}
@@ -239,22 +241,22 @@ export function AssignmentView({
         )}
 
         {/* Empty State */}
-        {totalAssignments === 0 && (
+        {totalEvents === 0 && (
           <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <BookOpen size={32} className="text-orange-500" />
+            <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
+              <Calendar size={32} className="text-purple-500" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No assignments yet
+              No events yet
             </h3>
             <p className="text-gray-500 mb-4">
-              Create your first assignment to get started with coursework management
+              Create your first event to get started with event management
             </p>
             <button
               onClick={() => setIsFormOpen(true)}
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors"
             >
-              Add Assignment
+              Add Event
             </button>
           </div>
         )}

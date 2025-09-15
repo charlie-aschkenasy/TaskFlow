@@ -1,265 +1,396 @@
 import React, { useState } from 'react';
-import { BookOpen, Plus } from 'lucide-react';
+import { Plus, X, Calendar, Tag, Paperclip, Bell, Repeat, Clock, User } from 'lucide-react';
 import { Task } from '../types';
-import { TaskItem } from './TaskItem';
-import { TaskForm } from './TaskForm';
-import { sortTasks, getAllTasksIncludingSubtasks } from '../utils/taskUtils';
+import { useProjects } from '../hooks/useProjects';
+import { useTaskLists } from '../hooks/useTaskLists';
+import { RichTextEditor } from './RichTextEditor';
+import { TagInput } from './TagInput';
+import { AttachmentManager } from './AttachmentManager';
+import { ReminderManager } from './ReminderManager';
 
-interface AssignmentViewProps {
-  tasks: Task[];
-  activeListName?: string;
-  onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
-  onUpdateTask: (id: string, updates: Partial<Task>) => void;
-  onAddSubtask: (parentId: string, subtask: any) => void;
-  onAddTask: (task: any, listId?: string) => void;
+interface TaskFormProps {
+  onSubmit: (task: Omit<Task, 'id' | 'createdAt' | 'subtasks'>, listId?: string) => void;
+  onCancel: () => void;
+  defaultTimeFrame?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
-export function AssignmentView({
-  tasks,
-  activeListName,
-  onToggleTask,
-  onDeleteTask,
-  onUpdateTask,
-  onAddSubtask,
-  onAddTask,
-}: AssignmentViewProps) {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-
-  // Get all tasks including subtasks and filter for assignments only
-  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
-  const assignments = allTasksWithSubtasks.filter(task => task.type === 'assignment');
+export function TaskForm({ 
+  onSubmit, 
+  onCancel, 
+  defaultTimeFrame = 'daily',
+  isOpen,
+  onToggle
+}: TaskFormProps) {
+  const { projects } = useProjects();
+  const { taskLists } = useTaskLists();
   
-  // Sort assignments by due date, then by creation date
-  const sortedAssignments = sortTasks(assignments, { 
-    primary: 'dueDate', 
-    primaryAscending: true, 
-    secondary: 'createdAt',
-    secondaryAscending: false 
-  });
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [taskType, setTaskType] = useState<'task' | 'event' | 'assignment'>('task');
+  const [timeFrame, setTimeFrame] = useState(defaultTimeFrame);
+  const [project, setProject] = useState(projects[0]?.id || '');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [dueDate, setDueDate] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'>('weekly');
+  const [recurringInterval, setRecurringInterval] = useState(1);
+  const [recurringDays, setRecurringDays] = useState<number[]>([]);
+  const [recurringEndDate, setRecurringEndDate] = useState('');
 
-  // Separate assignments by status
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const overdueAssignments = sortedAssignments.filter(assignment => {
-    if (!assignment.dueDate || assignment.completed) return false;
-    const dueDate = new Date(assignment.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    return dueDate < today;
-  });
-
-  const upcomingAssignments = sortedAssignments.filter(assignment => {
-    if (assignment.completed) return false;
-    if (!assignment.dueDate) return true; // Assignments without dates go to upcoming
-    const dueDate = new Date(assignment.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    return dueDate >= today;
-  });
-
-  const completedAssignments = sortedAssignments.filter(assignment => assignment.completed);
-
-  // Calculate statistics
-  const totalAssignments = assignments.length;
-  const pendingAssignments = totalAssignments - completedAssignments.length;
-
-  const handleAddAssignment = (assignmentData: any) => {
-    onAddTask({
-      ...assignmentData,
-      type: 'assignment', // Force type to be 'assignment'
-    });
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setTaskType('task');
+    setTimeFrame(defaultTimeFrame);
+    setProject(projects[0]?.id || '');
+    setPriority('medium');
+    setDueDate('');
+    setTags([]);
+    setAttachments([]);
+    setReminders([]);
+    setIsRecurring(false);
+    setRecurringFrequency('weekly');
+    setRecurringInterval(1);
+    setRecurringDays([]);
+    setRecurringEndDate('');
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    const taskData = {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      completed: false,
+      type: taskType,
+      timeFrame,
+      project,
+      listId: '', // Will be set by parent component
+      priority,
+      dueDate: dueDate || undefined,
+      parentId: undefined,
+      tags,
+      attachments,
+      reminders,
+      recurring: isRecurring ? {
+        enabled: true,
+        frequency: recurringFrequency,
+        interval: recurringInterval,
+        daysOfWeek: recurringDays.length > 0 ? recurringDays : undefined,
+        endDate: recurringEndDate || undefined,
+      } : undefined,
+    };
+
+    onSubmit(taskData);
+    resetForm();
+    onToggle();
+  };
+
+  const handleCancel = () => {
+    resetForm();
+    onCancel();
+  };
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const toggleRecurringDay = (dayIndex: number) => {
+    setRecurringDays(prev => 
+      prev.includes(dayIndex) 
+        ? prev.filter(d => d !== dayIndex)
+        : [...prev, dayIndex].sort()
+    );
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      >
+        <Plus size={18} />
+        Add new task
+      </button>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          {activeListName ? `${activeListName} - Assignments` : 'Assignments'}
-        </h2>
-        <p className="text-gray-600 mb-4">
-          {activeListName 
-            ? `Manage your ${activeListName.toLowerCase()} assignments and coursework`
-            : 'Manage all your assignments and coursework in one place'
-          }
-        </p>
-        <div className="flex justify-center gap-6 text-sm">
-          <div className="text-center">
-            <span className="block text-2xl font-semibold text-gray-900">
-              {totalAssignments}
-            </span>
-            <span className="text-gray-500">Total Assignments</span>
-          </div>
-          <div className="text-center">
-            <span className="block text-2xl font-semibold text-red-600">
-              {overdueAssignments.length}
-            </span>
-            <span className="text-gray-500">Overdue</span>
-          </div>
-          <div className="text-center">
-            <span className="block text-2xl font-semibold text-orange-600">
-              {upcomingAssignments.length}
-            </span>
-            <span className="text-gray-500">Upcoming</span>
-          </div>
-          <div className="text-center">
-            <span className="block text-2xl font-semibold text-green-600">
-              {completedAssignments.length}
-            </span>
-            <span className="text-gray-500">Completed</span>
-          </div>
-        </div>
+    <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Add New Task</h3>
+        <button
+          onClick={handleCancel}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X size={20} />
+        </button>
       </div>
 
-      {/* Quick Add Assignment */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Assignment</h3>
-        <TaskForm
-          onSubmit={handleAddAssignment}
-          onCancel={() => setIsFormOpen(false)}
-          isOpen={isFormOpen}
-          onToggle={() => setIsFormOpen(!isFormOpen)}
-        />
-      </div>
-
-      {/* Assignment Sections */}
-      <div className="space-y-6">
-        {/* Overdue Assignments */}
-        {overdueAssignments.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-500">
-                  <BookOpen className="text-white" size={20} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Overdue Assignments</h3>
-                  <p className="text-sm text-gray-500">
-                    {overdueAssignments.length} assignment{overdueAssignments.length !== 1 ? 's' : ''} past due
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 max-h-80 overflow-y-auto">
-              <div className="space-y-3">
-                {overdueAssignments.map(assignment => (
-                  <TaskItem
-                    key={assignment.id}
-                    task={assignment}
-                    onToggle={onToggleTask}
-                    onDelete={onDeleteTask}
-                    onUpdate={onUpdateTask}
-                    onAddSubtask={onAddSubtask}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Upcoming Assignments */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500">
-                <BookOpen className="text-white" size={20} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Upcoming Assignments</h3>
-                <p className="text-sm text-gray-500">
-                  {upcomingAssignments.length} assignment{upcomingAssignments.length !== 1 ? 's' : ''} to complete
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 max-h-96 overflow-y-auto">
-            {upcomingAssignments.length === 0 ? (
-              <div className="text-center py-8">
-                <BookOpen size={32} className="mx-auto text-gray-400 mb-3" />
-                <p className="text-center text-gray-500 text-sm">
-                  No upcoming assignments
-                </p>
-                <button
-                  onClick={() => setIsFormOpen(true)}
-                  className="mt-2 text-orange-500 hover:text-orange-600 text-sm font-medium"
-                >
-                  Add your first assignment
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingAssignments.map(assignment => (
-                  <TaskItem
-                    key={assignment.id}
-                    task={assignment}
-                    onToggle={onToggleTask}
-                    onDelete={onDeleteTask}
-                    onUpdate={onUpdateTask}
-                    onAddSubtask={onAddSubtask}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Title *
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Enter task title..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+            autoFocus
+          />
         </div>
 
-        {/* Completed Assignments */}
-        {completedAssignments.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500">
-                  <BookOpen className="text-white" size={20} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Completed Assignments</h3>
-                  <p className="text-sm text-gray-500">
-                    {completedAssignments.length} assignment{completedAssignments.length !== 1 ? 's' : ''} completed
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 max-h-80 overflow-y-auto">
-              <div className="space-y-3">
-                {completedAssignments.map(assignment => (
-                  <TaskItem
-                    key={assignment.id}
-                    task={assignment}
-                    onToggle={onToggleTask}
-                    onDelete={onDeleteTask}
-                    onUpdate={onUpdateTask}
-                    onAddSubtask={onAddSubtask}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Type
+          </label>
+          <select
+            value={taskType}
+            onChange={(e) => setTaskType(e.target.value as 'task' | 'event' | 'assignment')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="task">📝 Task</option>
+            <option value="event">📅 Event</option>
+            <option value="assignment">📚 Assignment</option>
+          </select>
+        </div>
 
-        {/* Empty State */}
-        {totalAssignments === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <BookOpen size={32} className="text-orange-500" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No assignments yet
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Create your first assignment to get started with coursework management
-            </p>
-            <button
-              onClick={() => setIsFormOpen(true)}
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <RichTextEditor
+            value={description}
+            onChange={setDescription}
+            placeholder="Add a description..."
+          />
+        </div>
+
+        {/* Time Frame and Priority */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Time Frame
+            </label>
+            <select
+              value={timeFrame}
+              onChange={(e) => setTimeFrame(e.target.value as any)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Add Assignment
-            </button>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
           </div>
-        )}
-      </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Priority
+            </label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as any)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Project and Due Date */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Project
+            </label>
+            <select
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {projects.map(proj => (
+                <option key={proj.id} value={proj.id}>
+                  {proj.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Due Date
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tags
+          </label>
+          <TagInput
+            selectedTags={tags}
+            onTagsChange={setTags}
+            placeholder="Add tags..."
+          />
+        </div>
+
+        {/* Attachments */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Attachments
+          </label>
+          <AttachmentManager
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+          />
+        </div>
+
+        {/* Reminders */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Reminders
+          </label>
+          <ReminderManager
+            reminders={reminders}
+            onRemindersChange={setReminders}
+            dueDate={dueDate}
+          />
+        </div>
+
+        {/* Recurring Task */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="recurring"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="recurring" className="text-sm font-medium text-gray-700">
+              Make this a recurring task
+            </label>
+          </div>
+
+          {isRecurring && (
+            <div className="pl-6 space-y-3 border-l-2 border-blue-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Frequency
+                  </label>
+                  <select
+                    value={recurringFrequency}
+                    onChange={(e) => setRecurringFrequency(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Every
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={recurringInterval}
+                      onChange={(e) => setRecurringInterval(parseInt(e.target.value) || 1)}
+                      className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-600">
+                      {recurringFrequency === 'daily' ? 'day(s)' :
+                       recurringFrequency === 'weekly' ? 'week(s)' :
+                       recurringFrequency === 'monthly' ? 'month(s)' :
+                       recurringFrequency === 'yearly' ? 'year(s)' : 'period(s)'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {(recurringFrequency === 'weekly' || recurringFrequency === 'custom') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Days of the week
+                  </label>
+                  <div className="flex gap-2">
+                    {dayNames.map((day, index) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleRecurringDay(index)}
+                        className={`px-3 py-1 text-sm rounded transition-colors ${
+                          recurringDays.includes(index)
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date (optional)
+                </label>
+                <input
+                  type="date"
+                  value={recurringEndDate}
+                  onChange={(e) => setRecurringEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className="flex gap-3 pt-4">
+          <button
+            type="submit"
+            className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors"
+          >
+            Create Task
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

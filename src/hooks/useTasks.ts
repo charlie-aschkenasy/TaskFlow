@@ -1,373 +1,460 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './useAuth';
+import { useTaskLists } from './useTaskLists';
 import { Task } from '../types';
-import { sortTasks } from '../utils/taskUtils';
-import { TaskItem } from './TaskItem';
-import { TaskForm } from './TaskForm';
 
-interface CalendarViewProps {
-  tasks: Task[];
-  activeListName?: string;
-  onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
-  onUpdateTask: (id: string, updates: Partial<Task>) => void;
-  onAddSubtask: (parentId: string, subtask: any) => void;
-  onAddTask: (task: any, listId?: string) => void;
+// Helper function to generate next occurrence date
+function getNextOccurrence(task: Task): Date | null {
+  if (!task.recurring?.enabled || !task.dueDate) return null;
+  
+  const { frequency, interval, daysOfWeek, endDate } = task.recurring;
+  const currentDue = new Date(task.dueDate);
+  let nextDate = new Date(currentDue);
+  
+  switch (frequency) {
+    case 'daily':
+      nextDate.setDate(nextDate.getDate() + interval);
+      break;
+    case 'weekly':
+      if (daysOfWeek && daysOfWeek.length > 0) {
+        // Find next occurrence based on selected days
+        const currentDay = nextDate.getDay();
+        const sortedDays = [...daysOfWeek].sort();
+        
+        // Find next day in current week
+        let nextDay = sortedDays.find(day => day > currentDay);
+        
+        if (nextDay !== undefined) {
+          // Next occurrence is in current week
+          nextDate.setDate(nextDate.getDate() + (nextDay - currentDay));
+        } else {
+          // Next occurrence is in next interval of weeks
+          nextDate.setDate(nextDate.getDate() + (7 * interval - currentDay + sortedDays[0]));
+        }
+      } else {
+        nextDate.setDate(nextDate.getDate() + (7 * interval));
+      }
+      break;
+    case 'monthly':
+      nextDate.setMonth(nextDate.getMonth() + interval);
+      break;
+    case 'yearly':
+      nextDate.setFullYear(nextDate.getFullYear() + interval);
+      break;
+    case 'custom':
+      // For custom, treat similar to weekly for now
+      if (daysOfWeek && daysOfWeek.length > 0) {
+        const currentDay = nextDate.getDay();
+        const sortedDays = [...daysOfWeek].sort();
+        let nextDay = sortedDays.find(day => day > currentDay);
+        
+        if (nextDay !== undefined) {
+          nextDate.setDate(nextDate.getDate() + (nextDay - currentDay));
+        } else {
+          nextDate.setDate(nextDate.getDate() + (7 - currentDay + sortedDays[0]));
+        }
+      }
+      break;
+  }
+  
+  // Check if next occurrence is beyond end date
+  if (endDate && nextDate > new Date(endDate)) {
+    return null;
+  }
+  
+  return nextDate;
 }
 
-export function CalendarView({
-  tasks,
-  activeListName,
-  onToggleTask,
-  onDeleteTask,
-  onUpdateTask,
-  onAddSubtask,
-  onAddTask,
-}: CalendarViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+export function useTasks(activeListId: string = 'all') {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const { user } = useAuth();
+  const { getPersonalListId } = useTaskLists();
 
-  // Get all tasks including subtasks for calendar display
-  const getAllTasksIncludingSubtasks = (taskList: Task[]): Task[] => {
-    const allTasks: Task[] = [];
-    const flatten = (tasks: Task[]) => {
-      tasks.forEach(task => {
-        allTasks.push(task);
-        flatten(task.subtasks);
+  // Load tasks from Supabase on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const loadTasks = async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading tasks:', error);
+        return;
+      }
+
+      // Convert database format to app format
+      const formattedTasks = data.map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        completed: task.completed,
+        timeFrame: task.time_frame,
+        project: task.project,
+        listId: task.list_id,
+        priority: task.priority,
+        dueDate: task.due_date || undefined,
+        createdAt: task.created_at,
+        parentId: task.parent_id,
+        tags: task.tags || [],
+        attachments: task.attachments || [],
+        reminders: task.reminders || [],
+        recurring: task.recurring,
+        subtasks: [], // Will be populated by organizing parent-child relationships
+      }));
+
+      // Organize tasks into parent-child relationships
+      const taskMap = new Map(formattedTasks.map(task => [task.id, { ...task, subtasks: [] }]));
+      const rootTasks: Task[] = [];
+
+      formattedTasks.forEach(task => {
+        if (task.parentId) {
+          const parent = taskMap.get(task.parentId);
+          if (parent) {
+            parent.subtasks.push(taskMap.get(task.id)!);
+          }
+        } else {
+          rootTasks.push(taskMap.get(task.id)!);
+        }
+      });
+
+      setTasks(rootTasks);
+    };
+
+    loadTasks();
+
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('tasks')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'tasks',
+          filter: `user_id=eq.${user.id}`
+        }, 
+        () => {
+          loadTasks(); // Reload tasks when changes occur
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
+
+  // Save task to Supabase
+  const saveTaskToSupabase = async (task: Task) => {
+    if (!user) return;
+
+    const taskData = {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      completed: task.completed,
+      time_frame: task.timeFrame,
+      project: task.project,
+      list_id: task.listId,
+      priority: task.priority,
+      due_date: task.dueDate,
+      created_at: task.createdAt,
+      parent_id: task.parentId,
+      tags: task.tags,
+      attachments: task.attachments,
+      reminders: task.reminders,
+      recurring: task.recurring,
+      user_id: user.id,
+    };
+
+    const { error } = await supabase
+      .from('tasks')
+      .upsert(taskData);
+
+    if (error) {
+      console.error('Error saving task:', error);
+    }
+  };
+
+  // Delete task from Supabase
+  const deleteTaskFromSupabase = async (taskId: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  // Check for recurring tasks that need new instances
+  useEffect(() => {
+    const checkRecurringTasks = () => {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      
+      setTasks(prevTasks => {
+        const newTasks = [...prevTasks];
+        let hasNewTasks = false;
+        
+        prevTasks.forEach(task => {
+          if (task.recurring?.enabled && task.dueDate && task.completed) {
+            const lastGenerated = task.recurring.lastGenerated ? new Date(task.recurring.lastGenerated) : new Date(task.createdAt);
+            const daysSinceGenerated = Math.floor((now.getTime() - lastGenerated.getTime()) / (1000 * 60 * 60 * 24));
+            
+            // Only generate if it's been at least a day since last generation
+            if (daysSinceGenerated >= 1) {
+              const nextOccurrence = getNextOccurrence(task);
+              
+              if (nextOccurrence && nextOccurrence.toISOString().split('T')[0] <= today) {
+                // Create new instance of recurring task
+                const newTask: Task = {
+                  ...task,
+                  id: crypto.randomUUID(),
+                  completed: false,
+                  dueDate: nextOccurrence.toISOString().split('T')[0],
+                  createdAt: now.toISOString(),
+                  recurring: {
+                    ...task.recurring,
+                    lastGenerated: now.toISOString(),
+                  },
+                };
+                
+                newTasks.push(newTask);
+                hasNewTasks = true;
+                
+                // Update original task's lastGenerated
+                const originalIndex = newTasks.findIndex(t => t.id === task.id);
+                if (originalIndex !== -1) {
+                  newTasks[originalIndex] = {
+                    ...task,
+                    recurring: {
+                      ...task.recurring,
+                      lastGenerated: now.toISOString(),
+                    },
+                  };
+                }
+              }
+            }
+          }
+        });
+        
+        return hasNewTasks ? newTasks : prevTasks;
       });
     };
-    flatten(taskList);
-    return allTasks;
+    
+    // Check immediately and then every hour
+    checkRecurringTasks();
+    const interval = setInterval(checkRecurringTasks, 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const addTask = (task: Omit<Task, 'id' | 'createdAt' | 'subtasks'>, listId?: string) => {
+    if (!user) return '';
+
+    const personalListId = getPersonalListId();
+    
+    // Use the task's listId first, then the provided listId, then fall back to personal
+    const targetListId = task.listId || listId || (activeListId === 'all' ? personalListId : activeListId);
+    
+    const newTask: Task = {
+      ...task,
+      tags: task.tags || [],
+      attachments: task.attachments || [],
+      reminders: task.reminders || [],
+      listId: targetListId,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      subtasks: [],
+    };
+    
+    setTasks(prev => [...prev, newTask]);
+    saveTaskToSupabase(newTask);
+    return newTask.id;
   };
 
-  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
-  const tasksWithDueDates = allTasksWithSubtasks.filter(task => {
-    console.log('Task:', task.title, 'Due Date:', task.dueDate, 'Type:', typeof task.dueDate);
-    return task.dueDate && task.dueDate.trim() !== '';
-  });
+  const addSubtask = async (parentId: string, subtask: Omit<Task, 'id' | 'createdAt' | 'subtasks' | 'parentId' | 'listId'>) => {
+    if (!user) return;
 
-  console.log('All tasks:', allTasksWithSubtasks.length);
-  console.log('Tasks with due dates:', tasksWithDueDates.length);
-  console.log('Sample task with due date:', tasksWithDueDates[0]);
-
-  // Calendar helper functions
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    // Find the parent task to get its listId
+    const parentTask = getTaskById(parentId);
+    if (!parentTask) return;
+    
+    const newSubtask: Task = {
+      ...subtask,
+      tags: subtask.tags || [],
+      attachments: subtask.attachments || [],
+      reminders: subtask.reminders || [],
+      listId: parentTask.listId,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      subtasks: [],
+      parentId,
+    };
+    
+    setTasks(prev => prev.map(task => 
+      addSubtaskRecursive(task, parentId, newSubtask)
+    ));
+    
+    await saveTaskToSupabase(newSubtask);
   };
 
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  const addSubtaskRecursive = (task: Task, parentId: string, newSubtask: Task): Task => {
+    if (task.id === parentId) {
+      return { ...task, subtasks: [...task.subtasks, newSubtask] };
+    }
+    return {
+      ...task,
+      subtasks: task.subtasks.map(subtask => addSubtaskRecursive(subtask, parentId, newSubtask))
+    };
   };
 
-  const formatDateKey = (date: Date) => {
-    return date.toISOString().split('T')[0];
+  const updateTask = async (id: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(task => updateTaskRecursive(task, id, updates)));
+    
+    // Find the updated task and save to Supabase
+    const updatedTask = getTaskById(id);
+    if (updatedTask) {
+      await saveTaskToSupabase({ ...updatedTask, ...updates });
+    }
+    
+    // Force a re-render to apply new sorting
+    setTasks(prev => [...prev]);
   };
 
-  const getTasksForDate = (dateStr: string) => {
-    const dateTasks = tasksWithDueDates.filter(task => {
-      const taskDueDate = task.dueDate;
-      if (!taskDueDate) return false;
-      
-      // Handle both full ISO dates and date-only strings
-      const taskDateStr = taskDueDate.includes('T') 
-        ? taskDueDate.split('T')[0] 
-        : taskDueDate;
-      
-      return taskDateStr === dateStr;
+  const updateTaskRecursive = (task: Task, id: string, updates: Partial<Task>): Task => {
+    if (task.id === id) {
+      return { ...task, ...updates };
+    }
+    return {
+      ...task,
+      subtasks: task.subtasks.map(subtask => updateTaskRecursive(subtask, id, updates))
+    };
+  };
+
+  const deleteTask = async (id: string) => {
+    setTasks(prev => prev.filter(task => task.id !== id).map(task => deleteTaskRecursive(task, id)));
+    await deleteTaskFromSupabase(id);
+  };
+
+  const moveTasksToList = async (fromListId: string, toListId: string) => {
+    setTasks(prev => prev.map(task => 
+      task.listId === fromListId ? { ...task, listId: toListId } : task
+    ));
+    
+    // Update all affected tasks in Supabase
+    for (const task of tasks) {
+      if (task.listId === fromListId) {
+        await saveTaskToSupabase({ ...task, listId: toListId });
+      }
+    }
+  };
+
+  const deleteTaskRecursive = (task: Task, idToDelete: string): Task => {
+    return {
+      ...task,
+      subtasks: task.subtasks.filter(subtask => subtask.id !== idToDelete).map(subtask => deleteTaskRecursive(subtask, idToDelete))
+    };
+  };
+
+  const toggleTask = async (id: string) => {
+    await updateTask(id, { completed: !getTaskById(id)?.completed });
+  };
+
+  const getTaskById = (id: string): Task | null => {
+    for (const task of tasks) {
+      const found = findTaskRecursive(task, id);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const findTaskRecursive = (task: Task, id: string): Task | null => {
+    if (task.id === id) return task;
+    for (const subtask of task.subtasks) {
+      const found = findTaskRecursive(subtask, id);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const getAllTasks = (filterByList: boolean = true): Task[] => {
+    // Only return top-level tasks, not subtasks
+    const topLevelTasks = tasks;
+    
+    if (!filterByList || activeListId === 'all') {
+      return topLevelTasks;
+    }
+    
+    // Filter tasks by the active list ID
+    const filteredTasks = topLevelTasks.filter(task => task.listId === activeListId);
+    console.log(`Filtering tasks for listId: ${activeListId}`, {
+      totalTasks: topLevelTasks.length,
+      filteredTasks: filteredTasks.length,
+      taskListIds: topLevelTasks.map(t => ({ id: t.id, title: t.title, listId: t.listId }))
     });
-    return sortTasks(dateTasks, { primary: 'createdAt', primaryAscending: false, secondaryAscending: true });
+    return filteredTasks;
   };
 
-  const isToday = (dateStr: string) => {
-    return dateStr === formatDateKey(new Date());
+  const reorderTasks = (draggableId: string, sourceIndex: number, destinationIndex: number, droppableId: string) => {
+    setTasks(prev => {
+      const newTasks = [...prev];
+      
+      // Find the task being moved
+      const taskIndex = newTasks.findIndex(task => task.id === draggableId);
+      if (taskIndex === -1) return prev;
+      
+      // Remove the task from its current position
+      const [movedTask] = newTasks.splice(taskIndex, 1);
+      
+      // Calculate the new position based on the destination index
+      // This is a simplified approach - in a real app you might want more sophisticated ordering
+      const insertIndex = destinationIndex > sourceIndex ? destinationIndex : destinationIndex;
+      
+      // Insert the task at the new position
+      newTasks.splice(insertIndex, 0, movedTask);
+      
+      return newTasks;
+    });
   };
 
-  const isOverdue = (dateStr: string) => {
-    return new Date(dateStr) < new Date() && dateStr !== formatDateKey(new Date());
+  const moveTaskToList = async (taskId: string, newListId: string, newTimeFrame?: string) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId) {
+        const updates: Partial<Task> = { listId: newListId };
+        if (newTimeFrame) {
+          updates.timeFrame = newTimeFrame as Task['timeFrame'];
+        }
+        // Note: We'll await this in the calling component
+        saveTaskToSupabase({ ...task, ...updates });
+        return { ...task, ...updates };
+      }
+      return task;
+    }));
   };
 
-  // Navigation functions
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  return {
+    tasks,
+    addTask,
+    addSubtask,
+    updateTask,
+    deleteTask,
+    toggleTask,
+    getTaskById,
+    getAllTasks,
+    moveTasksToList,
+    reorderTasks,
+    moveTaskToList,
+    reorderTasks,
+    moveTaskToList,
   };
-
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-    setSelectedDate(formatDateKey(new Date()));
-  };
-
-  // Generate calendar days
-  const generateCalendarDays = () => {
-    const daysInMonth = getDaysInMonth(currentDate);
-    const firstDay = getFirstDayOfMonth(currentDate);
-    const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(null);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      days.push(date);
-    }
-
-    return days;
-  };
-
-  const calendarDays = generateCalendarDays();
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          {activeListName ? `${activeListName} Calendar` : 'Calendar View'}
-        </h2>
-        <p className="text-gray-600 mb-4">
-          {activeListName 
-            ? `Visual overview of your ${activeListName.toLowerCase()} tasks with due dates`
-            : 'Visual overview of all your tasks with due dates'
-          }
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sidebar */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Quick Add Task */}
-          <div className="bg-white rounded-lg shadow-sm border p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Task</h3>
-            <TaskForm
-              onSubmit={onAddTask}
-              onCancel={() => setIsFormOpen(false)}
-              defaultTimeFrame="daily"
-              isOpen={isFormOpen}
-              onToggle={() => setIsFormOpen(!isFormOpen)}
-            />
-          </div>
-
-          {/* Selected Date Tasks */}
-          {selectedDate && (
-            <div className="bg-white rounded-lg shadow-sm border">
-              <div className="p-4 border-b">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon size={18} className="text-blue-500" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {new Date(selectedDate).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </h3>
-                </div>
-                {isToday(selectedDate) && (
-                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
-                    Today
-                  </span>
-                )}
-                {isOverdue(selectedDate) && (
-                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
-                    Overdue
-                  </span>
-                )}
-              </div>
-              
-              <div className="p-4 max-h-96 overflow-y-auto">
-                {selectedDateTasks.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
-                      <CalendarIcon size={24} className="text-gray-400" />
-                    </div>
-                    <p className="text-gray-500 text-sm">No tasks due on this date</p>
-                    <button
-                      onClick={() => setIsFormOpen(true)}
-                      className="mt-2 text-blue-500 hover:text-blue-600 text-sm font-medium"
-                    >
-                      Add a task
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">
-                        {selectedDateTasks.length} task{selectedDateTasks.length !== 1 ? 's' : ''}
-                      </span>
-                      <div className="flex gap-2 text-xs">
-                        <span className="text-green-600">
-                          {selectedDateTasks.filter(t => t.completed).length} completed
-                        </span>
-                        <span className="text-yellow-600">
-                          {selectedDateTasks.filter(t => !t.completed).length} pending
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {selectedDateTasks.map(task => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        onToggle={onToggleTask}
-                        onDelete={onDeleteTask}
-                        onUpdate={onUpdateTask}
-                        onAddSubtask={onAddSubtask}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Calendar Legend */}
-          <div className="bg-white rounded-lg shadow-sm border p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Legend</h3>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
-                <span>Today</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-50 border border-blue-500 rounded"></div>
-                <span>Selected Date</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-100 rounded"></div>
-                <span>Completed Tasks</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-100 rounded"></div>
-                <span>Overdue Tasks</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-100 rounded"></div>
-                <span>Pending Tasks</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Calendar */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-sm border">
-            {/* Calendar Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center gap-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                </h3>
-                <button
-                  onClick={goToToday}
-                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                  Today
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goToPreviousMonth}
-                  className="p-2 hover:bg-gray-100 rounded transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  onClick={goToNextMonth}
-                  className="p-2 hover:bg-gray-100 rounded transition-colors"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="p-4">
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {dayNames.map(day => (
-                  <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar Days */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((date, index) => {
-                  if (!date) {
-                    return <div key={index} className="p-2 h-24"></div>;
-                  }
-
-                  const dateStr = formatDateKey(date);
-                  const dayTasks = getTasksForDate(dateStr);
-                  const isSelected = selectedDate === dateStr;
-                  const isTodayDate = isToday(dateStr);
-                  const isOverdueDate = isOverdue(dateStr);
-
-                  return (
-                    <button
-                      key={dateStr}
-                      onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                      className={`p-2 h-24 border rounded-lg text-left transition-all hover:shadow-md ${
-                        : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                    <div className={`text-sm font-medium mb-1 ${
-                      isTodayDate ? 'text-blue-600' : 'text-gray-900'
-                        {date.getDate()}
-                      </div>
-                      
-                      {dayTasks.length > 0 && (
-                        <div className="space-y-1">
-                          {dayTasks.slice(0, 2).map(task => (
-                            <div
-                              key={task.id}
-                              className={`text-xs px-1 py-0.5 rounded truncate ${
-                                task.completed
-                                  ? 'bg-green-100 text-green-700'
-                                  : isOverdueDate
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                              title={task.title}
-                            >
-                              {task.title}
-                            </div>
-                          ))}
-                          {dayTasks.length > 2 && (
-                            <div className="text-xs text-gray-500">
-                              +{dayTasks.length - 2} more
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    }
-                    </button>
-                  );
-                }
-                )
-                }
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-  )
 }

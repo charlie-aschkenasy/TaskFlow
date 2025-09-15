@@ -45,6 +45,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
   const [newListIcon, setNewListIcon] = useState('📝');
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectColor, setNewProjectColor] = useState('#3B82F6');
+  const [taskType, setTaskType] = useState<'task' | 'event' | 'assignment'>('task');
 
   const predefinedColors = [
     '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
@@ -81,6 +82,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
+      type: taskType,
       completed: false,
       timeFrame,
       project,
@@ -99,6 +101,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
     setTags([]);
     setAttachments([]);
     setReminders([]);
+    setTaskType('task');
     setTimeFrame(defaultTimeFrame);
     // Keep the selected list for next task creation
     setProject(projects[0]?.id || '');
@@ -158,6 +161,8 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
     setNewListName('');
     setNewProjectName('');
     setShowAdditionalFields(false);
+    setTaskType('task');
+    setTaskType('task');
     
     if (onCancel) onCancel();
   };
@@ -191,7 +196,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            Task Title *
+            {taskType === 'task' ? 'Task' : taskType === 'event' ? 'Event' : 'Assignment'} Title *
           </label>
           <input
             type="text"
@@ -199,10 +204,26 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter task title..."
+            placeholder={`Enter ${taskType} title...`}
             required
             autoFocus
           />
+        </div>
+
+        <div>
+          <label htmlFor="taskType" className="block text-sm font-medium text-gray-700 mb-1">
+            Type
+          </label>
+          <select
+            id="taskType"
+            value={taskType}
+            onChange={(e) => setTaskType(e.target.value as 'task' | 'event' | 'assignment')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="task">📝 Task</option>
+            <option value="event">📅 Event</option>
+            <option value="assignment">📚 Assignment</option>
+          </select>
         </div>
 
         <div>
@@ -603,7 +624,7 @@ export function TaskForm({ onSubmit, onCancel, defaultTimeFrame = 'daily', isOpe
             disabled={showAdditionalFields && isRecurring && (recurringFrequency === 'weekly' || recurringFrequency === 'custom') && recurringDaysOfWeek.length === 0}
             className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Create Task
+            Create {taskType === 'task' ? 'Task' : taskType === 'event' ? 'Event' : 'Assignment'}
           </button>
           <button
             type="button"

@@ -17,7 +17,7 @@ export function AssignmentForm({
   isOpen,
   onToggle
 }: AssignmentFormProps) {
-  const { projects } = useProjects();
+  const { projects, otherProjectId } = useProjects();
   const { getPersonalListId } = useTaskLists();
   
   const [title, setTitle] = useState('');
@@ -36,8 +36,7 @@ export function AssignmentForm({
 
     // Get the personal list ID or first available project
     const personalListId = getPersonalListId();
-    const defaultProject = projects.find(p => p.name === 'Personal') || projects[0];
-    const selectedProject = project || defaultProject?.id || '';
+    const selectedProject = project || otherProjectId;
 
     const assignmentData = {
       title: title.trim(),

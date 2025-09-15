@@ -4,7 +4,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useTasks } from '../hooks/useTasks';
 
 export function ProjectManagement() {
-  const { projects, addProject, updateProject, deleteProject } = useProjects();
+  const { projects, otherProjectId, addProject, updateProject, deleteProject } = useProjects();
   const { getAllTasks, updateTask } = useTasks();
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -60,8 +60,14 @@ export function ProjectManagement() {
   };
 
   const handleDeleteProject = async (projectId: string, projectName: string) => {
+    // Prevent deletion of the "Other" project
+    if (projectId === otherProjectId) {
+      alert('The "Other" project cannot be deleted as it is used as a default for unassigned tasks.');
+      return;
+    }
+
     const taskCount = getTaskCountForProject(projectId);
-    const defaultProject = projects.find(p => p.name === 'Personal') || projects[0];
+    const defaultProject = projects.find(p => p.id === otherProjectId) || projects.find(p => p.name === 'Personal') || projects[0];
     
     if (taskCount > 0) {
       const confirmed = window.confirm(

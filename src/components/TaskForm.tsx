@@ -23,13 +23,13 @@ export function TaskForm({
   isOpen,
   onToggle
 }: TaskFormProps) {
-  const { projects } = useProjects();
+  const { projects, otherProjectId } = useProjects();
   const { taskLists } = useTaskLists();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [timeFrame, setTimeFrame] = useState(defaultTimeFrame);
-  const [project, setProject] = useState(projects[0]?.id || '');
+  const [project, setProject] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [dueDate, setDueDate] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -45,7 +45,7 @@ export function TaskForm({
     setTitle('');
     setDescription('');
     setTimeFrame(defaultTimeFrame);
-    setProject(projects[0]?.id || '');
+    setProject('');
     setPriority('medium');
     setDueDate('');
     setTags([]);
@@ -62,13 +62,15 @@ export function TaskForm({
     e.preventDefault();
     if (!title.trim()) return;
 
+    const projectToSave = project || otherProjectId;
+
     const taskData = {
       title: title.trim(),
       description: description.trim() || undefined,
       completed: false,
       type: 'task' as const,
       timeFrame,
-      project,
+      project: projectToSave,
       listId: '', // Will be set by parent component
       priority,
       dueDate: dueDate || undefined,
@@ -204,6 +206,7 @@ export function TaskForm({
               onChange={(e) => setProject(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
+              <option value="">Select Project (Optional)</option>
               {projects.map(proj => (
                 <option key={proj.id} value={proj.id}>
                   {proj.name}

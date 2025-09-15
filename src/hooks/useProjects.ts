@@ -9,10 +9,12 @@ const generateDefaultProjects = (): Project[] => [
   { id: crypto.randomUUID(), name: 'Learning', color: '#F59E0B' },
   { id: crypto.randomUUID(), name: 'Health', color: '#EF4444' },
   { id: crypto.randomUUID(), name: 'Hobbies', color: '#8B5CF6' },
+  { id: crypto.randomUUID(), name: 'Other', color: '#6B7280' },
 ];
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [otherProjectId, setOtherProjectId] = useState<string>('');
   const { user } = useAuth();
 
   useEffect(() => {
@@ -44,9 +46,38 @@ export function useProjects() {
 
         if (!insertError) {
           setProjects(defaultProjects);
+          // Find and set the Other project ID
+          const otherProject = defaultProjects.find(p => p.name === 'Other');
+          if (otherProject) {
+            setOtherProjectId(otherProject.id);
+          }
         }
       } else {
         setProjects(data);
+        
+        // Find the Other project or create it if it doesn't exist
+        const otherProject = data.find(p => p.name === 'Other');
+        if (otherProject) {
+          setOtherProjectId(otherProject.id);
+        } else {
+          // Create the Other project if it doesn't exist
+          const newOtherProject = {
+            id: crypto.randomUUID(),
+            name: 'Other',
+            color: '#6B7280',
+            user_id: user.id,
+            created_at: new Date().toISOString(),
+          };
+
+          const { error: insertError } = await supabase
+            .from('projects')
+            .insert([newOtherProject]);
+
+          if (!insertError) {
+            setProjects(prev => [...prev, newOtherProject]);
+            setOtherProjectId(newOtherProject.id);
+          }
+        }
       }
     };
 
@@ -134,6 +165,7 @@ export function useProjects() {
 
   return {
     projects,
+    otherProjectId,
     addProject,
     updateProject,
     deleteProject,

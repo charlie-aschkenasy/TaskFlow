@@ -326,14 +326,10 @@ export function CalendarView({
                           ? 'border-blue-500 bg-blue-50'
                           : isTodayDate
                           ? 'border-blue-300 bg-blue-25'
-                          : task.type === 'event'
-                          ? 'bg-blue-100 text-blue-700'
-                          : task.type === 'assignment'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-gray-100 text-gray-700'
+                          : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      {task.type === 'event' ? '📅' : task.type === 'assignment' ? '📚' : '✓'} {task.title}
+                      <div className={`text-sm font-medium mb-1 ${
                         isTodayDate ? 'text-blue-600' : 'text-gray-900'
                       }`}>
                         {date.getDate()}

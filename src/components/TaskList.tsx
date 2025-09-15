@@ -44,7 +44,6 @@ export function TaskList({
     priority: 'all',
     searchQuery: '',
     tags: [],
-    type: ['task', 'event', 'assignment'], // Show all types by default
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     primary: 'dueDate',

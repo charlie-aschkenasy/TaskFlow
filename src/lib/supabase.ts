@@ -18,7 +18,6 @@ export type Database = {
           title: string
           description: string | null
           completed: boolean
-          type: 'task' | 'event' | 'assignment'
           time_frame: 'daily' | 'weekly' | 'monthly' | 'yearly'
           project: string
           list_id: string
@@ -37,7 +36,6 @@ export type Database = {
           title: string
           description?: string | null
           completed?: boolean
-          type?: 'task' | 'event' | 'assignment'
           time_frame: 'daily' | 'weekly' | 'monthly' | 'yearly'
           project: string
           list_id: string
@@ -56,7 +54,6 @@ export type Database = {
           title?: string
           description?: string | null
           completed?: boolean
-          type?: 'task' | 'event' | 'assignment'
           time_frame?: 'daily' | 'weekly' | 'monthly' | 'yearly'
           project?: string
           list_id?: string

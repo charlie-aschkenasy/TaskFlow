@@ -66,8 +66,8 @@ export function ProjectView({
         </h2>
         <p className="text-gray-600 mb-4">
           {activeListName 
-            ? `Organize your ${activeListName.toLowerCase()} items by projects`
-            : 'Organize all your items by projects'
+            ? `Organize your ${activeListName.toLowerCase()} tasks by projects`
+            : 'Organize all your tasks by projects'
           }
         </p>
         <div className="flex justify-center gap-6 text-sm">
@@ -75,7 +75,7 @@ export function ProjectView({
             <span className="block text-2xl font-semibold text-gray-900">
               {totalTasks}
             </span>
-            <span className="text-gray-500">Total Items</span>
+            <span className="text-gray-500">Total Tasks</span>
           </div>
           <div className="text-center">
             <span className="block text-2xl font-semibold text-blue-600">

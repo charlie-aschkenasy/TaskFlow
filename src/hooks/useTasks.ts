@@ -93,7 +93,6 @@ export function useTasks(activeListId: string = 'all') {
         title: task.title,
         description: task.description,
         completed: task.completed,
-        type: task.type || 'task',
         timeFrame: task.time_frame,
         project: task.project,
         listId: task.list_id,
@@ -158,7 +157,6 @@ export function useTasks(activeListId: string = 'all') {
       title: task.title,
       description: task.description,
       completed: task.completed,
-      type: task.type || 'task',
       time_frame: task.timeFrame,
       project: task.project,
       list_id: task.listId,
@@ -270,7 +268,6 @@ export function useTasks(activeListId: string = 'all') {
     
     const newTask: Task = {
       ...task,
-      type: task.type || 'task',
       tags: task.tags || [],
       attachments: task.attachments || [],
       reminders: task.reminders || [],
@@ -399,13 +396,13 @@ export function useTasks(activeListId: string = 'all') {
     }
     
     // Filter tasks by the active list ID
-    const listFilteredTasks = topLevelTasks.filter(task => task.listId === activeListId);
+    const filteredTasks = topLevelTasks.filter(task => task.listId === activeListId);
     console.log(`Filtering tasks for listId: ${activeListId}`, {
       totalTasks: topLevelTasks.length,
-      filteredTasks: listFilteredTasks.length,
+      filteredTasks: filteredTasks.length,
       taskListIds: topLevelTasks.map(t => ({ id: t.id, title: t.title, listId: t.listId }))
     });
-    return listFilteredTasks;
+    return filteredTasks;
   };
 
   const reorderTasks = (draggableId: string, sourceIndex: number, destinationIndex: number, droppableId: string) => {
@@ -455,6 +452,8 @@ export function useTasks(activeListId: string = 'all') {
     getTaskById,
     getAllTasks,
     moveTasksToList,
+    reorderTasks,
+    moveTaskToList,
     reorderTasks,
     moveTaskToList,
   };

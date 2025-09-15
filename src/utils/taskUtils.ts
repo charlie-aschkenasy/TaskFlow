@@ -69,7 +69,6 @@ export function filterTasks(tasks: Task[], filters: {
   timeFrame?: string;
   completed?: string;
   searchQuery?: string;
-  type?: string[];
 }): Task[] {
   return tasks.filter(task => {
     // Search filter
@@ -117,11 +116,6 @@ export function filterTasks(tasks: Task[], filters: {
     // Project filter
     if (filters.project && filters.project !== 'all') {
       if (task.project !== filters.project) return false;
-    }
-
-    // Type filter
-    if (filters.type && filters.type.length > 0) {
-      if (!filters.type.includes(task.type)) return false;
     }
 
     // Assignee filter

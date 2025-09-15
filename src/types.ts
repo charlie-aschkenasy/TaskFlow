@@ -329,9 +329,12 @@ export function CalendarView({
                         : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className={`text-sm font-medium mb-1 ${
-                        isTodayDate ? 'text-blue-600' : 'text-gray-900'
-                      }`}>
+                    <div className={`text-sm font-medium mb-1 ${
+                      isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                    }
+                    <div className={`text-sm font-medium mb-1 ${
+                      isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                    }`}>
                         {date.getDate()}
                       </div>
                       
@@ -361,6 +364,9 @@ export function CalendarView({
                       )}
                     </button>
                   );
+                }
+                )
+                }
                 })}
               </div>
             </div>
@@ -369,4 +375,6 @@ export function CalendarView({
       </div>
     </div>
   );
+}
+  )
 }

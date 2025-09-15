@@ -1,370 +1,372 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, Tag, User, ChevronDown, ChevronUp, Edit3, Trash2, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { Task } from '../types';
-import { formatDate } from '../utils/taskUtils';
-import { useProjects } from '../hooks/useProjects';
-import { ProjectBadge } from './ProjectBadge';
-import { RichTextEditor } from './RichTextEditor';
-import { TagInput } from './TagInput';
-import { AttachmentManager } from './AttachmentManager';
-import { ReminderManager } from './ReminderManager';
+import { sortTasks } from '../utils/taskUtils';
+import { TaskItem } from './TaskItem';
+import { TaskForm } from './TaskForm';
 
-interface TaskItemProps {
-  task: Task;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
+interface CalendarViewProps {
+  tasks: Task[];
+  activeListName?: string;
+  onToggleTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onAddSubtask: (parentId: string, subtask: any) => void;
+  onAddTask: (task: any, listId?: string) => void;
 }
 
-export function TaskItem({
-  task,
-  onToggle,
-  onDelete,
-  onUpdate,
+export function CalendarView({
+  tasks,
+  activeListName,
+  onToggleTask,
+  onDeleteTask,
+  onUpdateTask,
   onAddSubtask,
-}: TaskItemProps) {
-  const { projects } = useProjects();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(task.title);
-  const [editDescription, setEditDescription] = useState(task.description || '');
-  const [editPriority, setEditPriority] = useState(task.priority);
-  const [editDueDate, setEditDueDate] = useState(task.dueDate || '');
-  const [editTags, setEditTags] = useState(task.tags || []);
-  const [editTimeFrame, setEditTimeFrame] = useState(task.timeFrame);
+  onAddTask,
+}: CalendarViewProps) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const project = projects.find(p => p.id === task.project);
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
-
-  const handleSaveEdit = () => {
-    onUpdate(task.id, {
-      title: editTitle.trim(),
-      description: editDescription.trim() || undefined,
-      priority: editPriority,
-      dueDate: editDueDate || undefined,
-      tags: editTags,
-      timeFrame: editTimeFrame,
-    });
-    setIsEditing(false);
-  };
-
-  const handleCancelEdit = () => {
-    setEditTitle(task.title);
-    setEditDescription(task.description || '');
-    setEditPriority(task.priority);
-    setEditDueDate(task.dueDate || '');
-    setEditTags(task.tags || []);
-    setEditTimeFrame(task.timeFrame);
-    setIsEditing(false);
-  };
-
-  const handleAddSubtask = () => {
-    const subtaskTitle = prompt('Enter subtask title:');
-    if (subtaskTitle?.trim()) {
-      onAddSubtask(task.id, {
-        title: subtaskTitle.trim(),
-        description: '',
-        completed: false,
-        timeFrame: task.timeFrame,
-        project: task.project,
-        priority: 'medium',
-        tags: [],
-        attachments: [],
-        reminders: [],
+  // Get all tasks including subtasks for calendar display
+  const getAllTasksIncludingSubtasks = (taskList: Task[]): Task[] => {
+    const allTasks: Task[] = [];
+    const flatten = (tasks: Task[]) => {
+      tasks.forEach(task => {
+        allTasks.push(task);
+        flatten(task.subtasks);
       });
-    }
+    };
+    flatten(taskList);
+    return allTasks;
   };
+
+  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
+  const tasksWithDueDates = allTasksWithSubtasks.filter(task => {
+    console.log('Task:', task.title, 'Due Date:', task.dueDate, 'Type:', typeof task.dueDate);
+    return task.dueDate && task.dueDate.trim() !== '';
+  });
+
+  console.log('All tasks:', allTasksWithSubtasks.length);
+  console.log('Tasks with due dates:', tasksWithDueDates.length);
+  console.log('Sample task with due date:', tasksWithDueDates[0]);
+
+  // Calendar helper functions
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const formatDateKey = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const getTasksForDate = (dateStr: string) => {
+    const dateTasks = tasksWithDueDates.filter(task => {
+      const taskDueDate = task.dueDate;
+      if (!taskDueDate) return false;
+      
+      // Handle both full ISO dates and date-only strings
+      const taskDateStr = taskDueDate.includes('T') 
+        ? taskDueDate.split('T')[0] 
+        : taskDueDate;
+      
+      return taskDateStr === dateStr;
+    });
+    return sortTasks(dateTasks, { primary: 'createdAt', primaryAscending: false, secondaryAscending: true });
+  };
+
+  const isToday = (dateStr: string) => {
+    return dateStr === formatDateKey(new Date());
+  };
+
+  const isOverdue = (dateStr: string) => {
+    return new Date(dateStr) < new Date() && dateStr !== formatDateKey(new Date());
+  };
+
+  // Navigation functions
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDate(formatDateKey(new Date()));
+  };
+
+  // Generate calendar days
+  const generateCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentDate);
+    const firstDay = getFirstDayOfMonth(currentDate);
+    const days = [];
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      days.push(date);
+    }
+
+    return days;
+  };
+
+  const calendarDays = generateCalendarDays();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
 
   return (
-    <div className={`bg-white rounded-lg border p-4 transition-all duration-200 ${
-      task.completed ? 'opacity-75 bg-gray-50' : 'hover:shadow-md'
-    } relative overflow-hidden`}>
-      {/* Priority vertical bar */}
-      {task.priority && (
-        <div 
-          className={`absolute left-0 top-0 bottom-0 w-1 ${
-            task.priority === 'high' ? 'bg-red-500' :
-            task.priority === 'medium' ? '' :
-            task.priority === 'low' ? 'bg-blue-500' :
-            'bg-gray-300'
-          }`}
-          style={task.priority === 'medium' ? { backgroundColor: '#ffff00' } : {}}
-        />
-      )}
-      
-      <div className="flex items-start gap-3">
-        {/* Completion checkbox */}
-        <button
-          onClick={() => onToggle(task.id)}
-          className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-            task.completed
-              ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 hover:border-green-400'
-          }`}
-        >
-          {task.completed && <Check size={12} />}
-        </button>
-
-        <div className="flex-1 min-w-0">
-          {/* Task title and priority */}
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className={`font-medium transition-all ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-              {task.title}
-            </h3>
-            {project && (
-              <ProjectBadge project={project} size="sm" />
-            )}
-            {task.recurring?.enabled && (
-              <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">Recurring</span>
-            )}
-          </div>
-
-          {/* Task description */}
-          {task.description && task.description.trim() && task.description.trim() !== '<p><br></p>' && task.description.trim() !== '<p></p>' && (
-            <div className={`mb-2 ${task.completed ? 'opacity-60' : ''}`}>
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                See additional notes
-              </button>
-              
-              {isExpanded && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
-                  <RichTextEditor
-                    value={task.description}
-                    onChange={() => {}}
-                    readOnly={true}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tags */}
-          {task.tags && task.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {task.tags.map(tag => (
-                <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Task metadata */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-            {task.dueDate && (
-              <div className={`flex items-center gap-1 ${isOverdue ? 'text-red-600' : ''}`}>
-                <Calendar size={14} />
-                <span>{formatDate(new Date(task.dueDate))}</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1">
-              <Clock size={14} />
-              <span>{new Date(task.createdAt).toLocaleDateString()}</span>
-            </div>
-
-            {task.attachments && task.attachments.length > 0 && (
-              <div className="flex items-center gap-1 text-gray-500">
-                <span>📎</span>
-                <span>{task.attachments.length}</span>
-              </div>
-            )}
-
-            {task.reminders && task.reminders.length > 0 && (
-              <div className="flex items-center gap-1 text-gray-500">
-                <span>🔔</span>
-                <span>{task.reminders.filter(r => r.enabled && !r.triggered).length}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Subtasks */}
-          {hasSubtasks && (
-            <div className="mt-3">
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"
-              >
-                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                <span>{task.subtasks!.length} subtask{task.subtasks!.length !== 1 ? 's' : ''}</span>
-              </button>
-
-              {isExpanded && (
-                <div className="mt-2 ml-4 space-y-2">
-                  {task.subtasks!.map(subtask => (
-                    <TaskItem
-                      key={subtask.id}
-                      task={subtask}
-                      onToggle={onToggle}
-                      onDelete={onDelete}
-                      onUpdate={onUpdate}
-                      onAddSubtask={onAddSubtask}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-1">
-          {hasSubtasks && (
-            <button
-              onClick={handleAddSubtask}
-              className="p-1 text-gray-400 hover:text-green-500 transition-colors"
-              title="Add subtask"
-            >
-              <span className="text-sm">+</span>
-            </button>
-          )}
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-            title="Edit task"
-          >
-            <Edit3 size={16} />
-          </button>
-          <button
-            onClick={() => {
-              if (window.confirm('Are you sure you want to delete this task?')) {
-                onDelete(task.id);
-              }
-            }}
-            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-            title="Delete task"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          {activeListName ? `${activeListName} Calendar` : 'Calendar View'}
+        </h2>
+        <p className="text-gray-600 mb-4">
+          {activeListName 
+            ? `Visual overview of your ${activeListName.toLowerCase()} tasks with due dates`
+            : 'Visual overview of all your tasks with due dates'
+          }
+        </p>
       </div>
 
-      {/* Edit Form */}
-      {isEditing && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Title
-              </label>
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Quick Add Task */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Task</h3>
+            <TaskForm
+              onSubmit={onAddTask}
+              onCancel={() => setIsFormOpen(false)}
+              defaultTimeFrame="daily"
+              isOpen={isFormOpen}
+              onToggle={() => setIsFormOpen(!isFormOpen)}
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <RichTextEditor
-                value={editDescription}
-                onChange={setEditDescription}
-                placeholder="Add a description..."
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time Frame
-                </label>
-                <select
-                  value={editTimeFrame}
-                  onChange={(e) => setEditTimeFrame(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
+          {/* Selected Date Tasks */}
+          {selectedDate && (
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="p-4 border-b">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon size={18} className="text-blue-500" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {new Date(selectedDate).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </h3>
+                </div>
+                {isToday(selectedDate) && (
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                    Today
+                  </span>
+                )}
+                {isOverdue(selectedDate) && (
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                    Overdue
+                  </span>
+                )}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Priority
-                </label>
-                <select
-                  value={editPriority}
-                  onChange={(e) => setEditPriority(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+              
+              <div className="p-4 max-h-96 overflow-y-auto">
+                {selectedDateTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                      <CalendarIcon size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 text-sm">No tasks due on this date</p>
+                    <button
+                      onClick={() => setIsFormOpen(true)}
+                      className="mt-2 text-blue-500 hover:text-blue-600 text-sm font-medium"
+                    >
+                      Add a task
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        {selectedDateTasks.length} task{selectedDateTasks.length !== 1 ? 's' : ''}
+                      </span>
+                      <div className="flex gap-2 text-xs">
+                        <span className="text-green-600">
+                          {selectedDateTasks.filter(t => t.completed).length} completed
+                        </span>
+                        <span className="text-yellow-600">
+                          {selectedDateTasks.filter(t => !t.completed).length} pending
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {selectedDateTasks.map(task => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        onToggle={onToggleTask}
+                        onDelete={onDeleteTask}
+                        onUpdate={onUpdateTask}
+                        onAddSubtask={onAddSubtask}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
+            </div>
+          )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={editDueDate}
-                  onChange={(e) => setEditDueDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+          {/* Calendar Legend */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Legend</h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
+                <span>Today</span>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags
-              </label>
-              <TagInput
-                selectedTags={editTags}
-                onTagsChange={setEditTags}
-                placeholder="Add tags..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Attachments
-              </label>
-              <AttachmentManager
-                attachments={task.attachments || []}
-                onAttachmentsChange={(attachments) => onUpdate(task.id, { attachments })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Reminders
-              </label>
-              <ReminderManager
-                reminders={task.reminders || []}
-                onRemindersChange={(reminders) => onUpdate(task.id, { reminders })}
-                dueDate={editDueDate}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveEdit}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-              >
-                Save Changes
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-50 border border-blue-500 rounded"></div>
+                <span>Selected Date</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-100 rounded"></div>
+                <span>Completed Tasks</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-100 rounded"></div>
+                <span>Overdue Tasks</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-gray-100 rounded"></div>
+                <span>Pending Tasks</span>
+              </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Calendar */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-lg shadow-sm border">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </h3>
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Today
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPreviousMonth}
+                  className="p-2 hover:bg-gray-100 rounded transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={goToNextMonth}
+                  className="p-2 hover:bg-gray-100 rounded transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="p-4">
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {dayNames.map(day => (
+                  <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((date, index) => {
+                  if (!date) {
+                    return <div key={index} className="p-2 h-24"></div>;
+                  }
+
+                  const dateStr = formatDateKey(date);
+                  const dayTasks = getTasksForDate(dateStr);
+                  const isSelected = selectedDate === dateStr;
+                  const isTodayDate = isToday(dateStr);
+                  const isOverdueDate = isOverdue(dateStr);
+
+                  return (
+                    <button
+                      key={dateStr}
+                      onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                      className={`p-2 h-24 border rounded-lg text-left transition-all hover:shadow-md ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50'
+                          : isTodayDate
+                          ? 'border-blue-300 bg-blue-25'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className={`text-sm font-medium mb-1 ${
+                        isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                      }`}>
+                        {date.getDate()}
+                      </div>
+                      
+                      {dayTasks.length > 0 && (
+                        <div className="space-y-1">
+                          {dayTasks.slice(0, 2).map(task => (
+                            <div
+                              key={task.id}
+                              className={`text-xs px-1 py-0.5 rounded truncate ${
+                                task.completed
+                                  ? 'bg-green-100 text-green-700'
+                                  : isOverdueDate
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                              title={task.title}
+                            >
+                              {task.title}
+                            </div>
+                          ))}
+                          {dayTasks.length > 2 && (
+                            <div className="text-xs text-gray-500">
+                              +{dayTasks.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

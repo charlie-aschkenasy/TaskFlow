@@ -7,6 +7,7 @@ import { TaskItem } from './TaskItem';
 import { TaskForm } from './TaskForm';
 
 interface DashboardProps {
+interface TaskDashboardProps {
   tasks: Task[];
   activeListName?: string;
   onToggleTask: (id: string) => void;
@@ -16,7 +17,7 @@ interface DashboardProps {
   onAddTask: (task: any, listId?: string) => void;
 }
 
-export function Dashboard({ 
+export function TaskDashboard({ 
   tasks, 
   activeListName,
   onToggleTask, 
@@ -24,9 +25,12 @@ export function Dashboard({
   onUpdateTask, 
   onAddSubtask,
   onAddTask
-}: DashboardProps) {
+}: TaskDashboardProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const counts = getTaskCountsByTimeframe(tasks);
+  
+  // Filter to only show tasks (not events or assignments)
+  const taskOnlyItems = tasks.filter(task => task.type === 'task');
+  const counts = getTaskCountsByTimeframe(taskOnlyItems);
   
   // Helper function to get all tasks including subtasks
   const getAllTasksIncludingSubtasks = (taskList: Task[]): Task[] => {
@@ -41,7 +45,7 @@ export function Dashboard({
     return allTasks;
   };
 
-  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
+  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(taskOnlyItems);
   const completedTasks = allTasksWithSubtasks.filter(task => task.completed);
   const pendingTasks = allTasksWithSubtasks.filter(task => !task.completed);
   const overdueTask = allTasksWithSubtasks.filter(task => {
@@ -55,29 +59,28 @@ export function Dashboard({
       count: counts.daily,
       icon: Clock,
       color: 'bg-blue-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'daily'), 'dueDate', true),
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'daily'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(taskOnlyItems.filter(task => task.timeFrame === 'daily'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
       title: 'Weekly Tasks', 
       count: counts.weekly,
       icon: Calendar,
       color: 'bg-green-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'weekly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(taskOnlyItems.filter(task => task.timeFrame === 'weekly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
       title: 'Monthly Tasks',
       count: counts.monthly,
       icon: Target,
       color: 'bg-purple-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'monthly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(taskOnlyItems.filter(task => task.timeFrame === 'monthly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
       title: 'Yearly Tasks',
       count: counts.yearly,
       icon: TrendingUp,
       color: 'bg-orange-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'yearly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(taskOnlyItems.filter(task => task.timeFrame === 'yearly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
   ];
 
@@ -86,10 +89,10 @@ export function Dashboard({
       {/* Header */}
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          {activeListName ? `${activeListName} Dashboard` : 'Dashboard'}
+          {activeListName ? `${activeListName} Task Dashboard` : 'Task Dashboard'}
         </h2>
         <p className="text-gray-600 mb-4">
-          {activeListName ? `Overview of your ${activeListName.toLowerCase()} tasks` : 'Overview of all your tasks'}
+          {activeListName ? `Overview of your ${activeListName.toLowerCase()} tasks only` : 'Overview of all your tasks only'}
         </p>
       </div>
 

@@ -75,8 +75,8 @@ export function PriorityView({
         </h2>
         <p className="text-gray-600 mb-4">
           {activeListName 
-            ? `Organize your ${activeListName.toLowerCase()} tasks by priority`
-            : 'Organize all your tasks by priority level'
+            ? `Organize your ${activeListName.toLowerCase()} items by priority`
+            : 'Organize all your items by priority level'
           }
         </p>
         <div className="flex justify-center gap-6 text-sm">
@@ -84,7 +84,7 @@ export function PriorityView({
             <span className="block text-2xl font-semibold text-gray-900">
               {totalTasks}
             </span>
-            <span className="text-gray-500">Total Tasks</span>
+            <span className="text-gray-500">Total Items</span>
           </div>
           <div className="text-center">
             <span className="block text-2xl font-semibold text-green-600">

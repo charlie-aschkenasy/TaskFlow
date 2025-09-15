@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   description?: string;
   completed: boolean;
+  type: 'task' | 'event' | 'assignment';
   timeFrame: 'daily' | 'weekly' | 'monthly' | 'yearly';
   project: string;
   listId: string;
@@ -57,7 +58,7 @@ export interface TaskList {
 }
 
 export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'calendar';
-export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'calendar' | 'tags' | 'projects' | 'priority';
+export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'task-dashboard' | 'calendar' | 'tags' | 'projects' | 'priority';
 
 export interface FilterState {
   timeFrame: string;
@@ -66,6 +67,7 @@ export interface FilterState {
   priority: string;
   searchQuery: string;
   tags: string[];
+  type: string[];
 }
 
 export type SortOption = 'createdAt' | 'dueDate' | 'priority' | 'title' | 'project' | 'tags';

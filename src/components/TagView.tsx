@@ -73,8 +73,8 @@ export function TagView({
         </h2>
         <p className="text-gray-600 mb-4">
           {activeListName 
-            ? `Organize your ${activeListName.toLowerCase()} tasks by tags`
-            : 'Organize all your tasks by tags'
+            ? `Organize your ${activeListName.toLowerCase()} items by tags`
+            : 'Organize all your items by tags'
           }
         </p>
         <div className="flex justify-center gap-6 text-sm">
@@ -82,7 +82,7 @@ export function TagView({
             <span className="block text-2xl font-semibold text-gray-900">
               {totalTasks}
             </span>
-            <span className="text-gray-500">Total Tasks</span>
+            <span className="text-gray-500">Total Items</span>
           </div>
           <div className="text-center">
             <span className="block text-2xl font-semibold text-blue-600">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, Tag, User, ChevronDown, ChevronUp, Edit3, Trash2, Check, X } from 'lucide-react';
+import { Calendar, Clock, Tag, User, ChevronDown, ChevronUp, Edit3, Trash2, Check, X, Pencil, BookOpen } from 'lucide-react';
 import { Task } from '../types';
 import { formatDate } from '../utils/taskUtils';
 import { useProjects } from '../hooks/useProjects';
@@ -38,6 +38,27 @@ export function TaskItem({
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !task.completed;
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
+  const getTypeIcon = () => {
+    switch (task.type) {
+      case 'event':
+        return <Calendar size={16} className="text-blue-500" />;
+      case 'assignment':
+        return <BookOpen size={16} className="text-purple-500" />;
+      default:
+        return <Pencil size={16} className="text-gray-500" />;
+    }
+  };
+
+  const getTypeLabel = () => {
+    switch (task.type) {
+      case 'event':
+        return 'Event';
+      case 'assignment':
+        return 'Assignment';
+      default:
+        return 'Task';
+    }
+  };
   const handleSaveEdit = () => {
     onUpdate(task.id, {
       title: editTitle.trim(),
@@ -90,7 +111,7 @@ export function TaskItem({
             task.priority === 'low' ? 'bg-blue-500' :
             'bg-gray-300'
           }`}
-          style={task.priority === 'medium' ? { backgroundColor: '#ffff00' } : {}}
+          style={task.priority === 'medium' ? { backgroundColor: '#EAB308' } : {}}
         />
       )}
       
@@ -110,6 +131,9 @@ export function TaskItem({
         <div className="flex-1 min-w-0">
           {/* Task title and priority */}
           <div className="flex items-center gap-2 mb-2">
+            <div className="flex-shrink-0" title={getTypeLabel()}>
+              {getTypeIcon()}
+            </div>
             <h3 className={`font-medium transition-all ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
               {task.title}
             </h3>

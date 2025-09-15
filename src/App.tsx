@@ -17,7 +17,8 @@ import { ViewMode } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useTaskLists } from './hooks/useTaskLists';
 import { useAuth } from './hooks/useAuth';
-import { Dashboard } from './components/Dashboard';
+import { AllItemsDashboard } from './components/AllItemsDashboard';
+import { TaskDashboard } from './components/TaskDashboard';
 import { TimeframeView } from './components/TimeframeView';
 import { CalendarView } from './components/CalendarView';
 import { TaskList } from './components/TaskList';
@@ -94,15 +95,12 @@ export default function App() {
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
+    { id: 'task-dashboard', name: 'Task Dashboard', icon: List },
     { id: 'all', name: 'All Tasks', icon: List },
-    { id: 'priority', name: 'Priority View', icon: AlertTriangle },
     { id: 'tags', name: 'Tags View', icon: Tag },
     { id: 'projects', name: 'Projects View', icon: FolderOpen },
+    { id: 'priority', name: 'Priority View', icon: AlertTriangle },
     { id: 'calendar', name: 'Calendar', icon: Calendar },
-    { id: 'daily', name: 'Daily', icon: Calendar },
-    { id: 'weekly', name: 'Weekly', icon: Calendar },
-    { id: 'monthly', name: 'Monthly', icon: Calendar },
-    { id: 'yearly', name: 'Yearly', icon: Calendar },
   ];
 
   const currentViewItem = navigation.find(item => item.id === currentView);
@@ -111,7 +109,7 @@ export default function App() {
     switch (currentView) {
       case 'dashboard':
         return (
-          <Dashboard
+          <AllItemsDashboard
             tasks={visibleTasks}
             activeListName={activeListName}
             onToggleTask={toggleTask}
@@ -121,22 +119,16 @@ export default function App() {
             onAddTask={addTask}
           />
         );
-      case 'daily':
-      case 'weekly':
-      case 'monthly':
-      case 'yearly':
+      case 'task-dashboard':
         return (
-          <TimeframeView
-            timeframe={currentView}
+          <TaskDashboard
             tasks={visibleTasks}
             activeListName={activeListName}
-            activeListId={activeListId}
             onToggleTask={toggleTask}
             onDeleteTask={deleteTask}
             onUpdateTask={updateTask}
             onAddSubtask={addSubtask}
             onAddTask={addTask}
-            onReorderTasks={reorderTasks}
           />
         );
       case 'calendar':

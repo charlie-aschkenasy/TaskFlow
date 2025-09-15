@@ -111,6 +111,12 @@ export function FilterSort({
                 </div>
               )}
               
+              {filters.type && filters.type.length > 0 && filters.type.length < 3 && (
+                <div className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                  {filters.type.join(', ')}
+                </div>
+              )}
+              
               {filters.tags && filters.tags.length > 0 && (
                 <div className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                   {filters.tags.length} tag{filters.tags.length !== 1 ? 's' : ''}
@@ -178,6 +184,27 @@ export function FilterSort({
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <div className="space-y-1">
+                {['task', 'event', 'assignment'].map(type => (
+                  <label key={type} className="flex items-center text-sm">
+                    <input
+                      type="checkbox"
+                      checked={filters.type.includes(type)}
+                      onChange={(e) => {
+                        const newTypes = e.target.checked
+                          ? [...filters.type, type]
+                          : filters.type.filter(t => t !== type);
+                        onFiltersChange({ ...filters, type: newTypes });
+                      }}
+                      className="mr-2 rounded"
+                    />
+                    <span className="capitalize">{type}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Project</label>
               <select
                 value={filters.project}
@@ -209,6 +236,7 @@ export function FilterSort({
             </div>
 
             <div className="md:col-span-2 lg:col-span-3">
+            <div className="md:col-span-2 lg:col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">Filter by Tags</label>
               <MultiSelectTags
                 availableTags={usedTags}

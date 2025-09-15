@@ -30,6 +30,7 @@ export type Database = {
           reminders: any[]
           recurring: any | null
           user_id: string
+          type: 'task' | 'event' | 'assignment'
         }
         Insert: {
           id?: string
@@ -48,6 +49,7 @@ export type Database = {
           reminders?: any[]
           recurring?: any | null
           user_id: string
+          type?: 'task' | 'event' | 'assignment'
         }
         Update: {
           id?: string
@@ -66,6 +68,7 @@ export type Database = {
           reminders?: any[]
           recurring?: any | null
           user_id?: string
+          type?: 'task' | 'event' | 'assignment'
         }
       }
       task_lists: {

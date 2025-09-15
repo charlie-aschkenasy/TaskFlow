@@ -100,14 +100,10 @@ export default function App() {
     { id: 'all', name: 'All Tasks', icon: List },
     { id: 'events', name: 'Events', icon: Calendar },
     { id: 'assignments', name: 'Assignments', icon: BookOpen },
-    { id: 'priority', name: 'Priority View', icon: AlertTriangle },
     { id: 'tags', name: 'Tags View', icon: Tag },
     { id: 'projects', name: 'Projects View', icon: FolderOpen },
     { id: 'calendar', name: 'Calendar', icon: Calendar },
     { id: 'daily', name: 'Daily', icon: Calendar },
-    { id: 'weekly', name: 'Weekly', icon: Calendar },
-    { id: 'monthly', name: 'Monthly', icon: Calendar },
-    { id: 'yearly', name: 'Yearly', icon: Calendar },
   ];
 
   const currentViewItem = navigation.find(item => item.id === currentView);

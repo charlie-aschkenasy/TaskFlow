@@ -111,12 +111,14 @@ export function EventView({
 
       {/* Quick Add Event */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Event</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Event</h3>
         <TaskForm
           onSubmit={handleAddEvent}
           onCancel={() => setIsFormOpen(false)}
           isOpen={isFormOpen}
           onToggle={() => setIsFormOpen(!isFormOpen)}
+          defaultType="event"
+          hideTypeSelector={true}
         />
       </div>
 

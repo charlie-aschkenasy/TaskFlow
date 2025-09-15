@@ -236,7 +236,6 @@ export function FilterSort({
             </div>
 
             <div className="md:col-span-2 lg:col-span-3">
-            <div className="md:col-span-2 lg:col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">Filter by Tags</label>
               <MultiSelectTags
                 availableTags={usedTags}

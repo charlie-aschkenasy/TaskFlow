@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   description?: string;
   completed: boolean;
+  type: 'task' | 'event' | 'assignment';
   timeFrame: 'daily' | 'weekly' | 'monthly' | 'yearly';
   project: string;
   listId: string;

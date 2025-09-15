@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, Plus, List, Calendar } from 'lucide-react';
 import { Task } from '../types';
 import { TaskItem } from './TaskItem';
 import { AssignmentForm } from './AssignmentForm';
+import { AssignmentCalendarView } from './AssignmentCalendarView';
 import { sortTasks, getAllTasksIncludingSubtasks } from '../utils/taskUtils';
 
 interface AssignmentViewProps {
@@ -25,6 +26,7 @@ export function AssignmentView({
   onAddTask,
 }: AssignmentViewProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   // Get all tasks including subtasks and filter for assignments only
   const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
@@ -112,92 +114,201 @@ export function AssignmentView({
       </div>
 
       {/* Quick Add Assignment */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Assignment</h3>
-        <AssignmentForm
-          onSubmit={onAddTask}
-          onCancel={() => setIsFormOpen(false)}
-          isOpen={isFormOpen}
-          onToggle={() => setIsFormOpen(!isFormOpen)}
-        />
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Assignment</h3>
+          <AssignmentForm
+            onSubmit={onAddTask}
+            onCancel={() => setIsFormOpen(false)}
+            isOpen={isFormOpen}
+            onToggle={() => setIsFormOpen(!isFormOpen)}
+          />
+        </div>
+      )}
+
+      {/* View Mode Tabs */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+              viewMode === 'list'
+                ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <List size={16} />
+            List View
+          </button>
+          <button
+            onClick={() => setViewMode('calendar')}
+            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+              viewMode === 'calendar'
+                ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Calendar size={16} />
+            Calendar View
+          </button>
+        </div>
       </div>
 
-      {/* Assignment Sections */}
-      <div className="space-y-6">
-        {/* Overdue Assignments */}
-        {overdueAssignments.length > 0 && (
+      {/* Content based on view mode */}
+      {viewMode === 'list' ? (
+        /* Assignment Sections */
+        <div className="space-y-6">
+          {/* Overdue Assignments */}
+          {overdueAssignments.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-500">
+                    <BookOpen className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Overdue Assignments</h3>
+                    <p className="text-sm text-gray-500">
+                      {overdueAssignments.length} assignment{overdueAssignments.length !== 1 ? 's' : ''} past due
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 max-h-80 overflow-y-auto">
+                <div className="space-y-3">
+                  {overdueAssignments.map(assignment => (
+                    <TaskItem
+                      key={assignment.id}
+                      task={assignment}
+                      onToggle={onToggleTask}
+                      onDelete={onDeleteTask}
+                      onUpdate={onUpdateTask}
+                      onAddSubtask={onAddSubtask}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Assignments */}
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-500">
+                <div className="p-2 rounded-lg bg-orange-500">
                   <BookOpen className="text-white" size={20} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Overdue Assignments</h3>
+                  <h3 className="font-semibold text-gray-900">Upcoming Assignments</h3>
                   <p className="text-sm text-gray-500">
-                    {overdueAssignments.length} assignment{overdueAssignments.length !== 1 ? 's' : ''} past due
+                    {upcomingAssignments.length} assignment{upcomingAssignments.length !== 1 ? 's' : ''} to complete
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="p-4 max-h-80 overflow-y-auto">
-              <div className="space-y-3">
-                {overdueAssignments.map(assignment => (
-                  <TaskItem
-                    key={assignment.id}
-                    task={assignment}
-                    onToggle={onToggleTask}
-                    onDelete={onDeleteTask}
-                    onUpdate={onUpdateTask}
-                    onAddSubtask={onAddSubtask}
-                  />
-                ))}
-              </div>
+            <div className="p-4 max-h-96 overflow-y-auto">
+              {upcomingAssignments.length === 0 ? (
+                <div className="text-center py-8">
+                  <BookOpen size={32} className="mx-auto text-gray-400 mb-3" />
+                  <p className="text-center text-gray-500 text-sm">
+                    No upcoming assignments
+                  </p>
+                  <button
+                    onClick={() => setIsFormOpen(true)}
+                    className="mt-2 text-orange-500 hover:text-orange-600 text-sm font-medium"
+                  >
+                    Add your first assignment
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingAssignments.map(assignment => (
+                    <TaskItem
+                      key={assignment.id}
+                      task={assignment}
+                      onToggle={onToggleTask}
+                      onDelete={onDeleteTask}
+                      onUpdate={onUpdateTask}
+                      onAddSubtask={onAddSubtask}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Upcoming Assignments */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500">
-                <BookOpen className="text-white" size={20} />
+          {/* Completed Assignments */}
+          {completedAssignments.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500">
+                    <BookOpen className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Completed Assignments</h3>
+                    <p className="text-sm text-gray-500">
+                      {completedAssignments.length} assignment{completedAssignments.length !== 1 ? 's' : ''} completed
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Upcoming Assignments</h3>
-                <p className="text-sm text-gray-500">
-                  {upcomingAssignments.length} assignment{upcomingAssignments.length !== 1 ? 's' : ''} to complete
-                </p>
+              
+              <div className="p-4 max-h-80 overflow-y-auto">
+                <div className="space-y-3">
+                  {completedAssignments.map(assignment => (
+                    <TaskItem
+                      key={assignment.id}
+                      task={assignment}
+                      onToggle={onToggleTask}
+                      onDelete={onDeleteTask}
+                      onUpdate={onUpdateTask}
+                      onAddSubtask={onAddSubtask}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="p-4 max-h-96 overflow-y-auto">
-            {upcomingAssignments.length === 0 ? (
-              <div className="text-center py-8">
-                <BookOpen size={32} className="mx-auto text-gray-400 mb-3" />
-                <p className="text-center text-gray-500 text-sm">
-                  No upcoming assignments
-                </p>
-                <button
-                  onClick={() => setIsFormOpen(true)}
-                  className="mt-2 text-orange-500 hover:text-orange-600 text-sm font-medium"
-                >
-                  Add your first assignment
-                </button>
+          )}
+
+          {/* Empty State */}
+          {totalAssignments === 0 && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                <BookOpen size={32} className="text-orange-500" />
               </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingAssignments.map(assignment => (
-                  <TaskItem
-                    key={assignment.id}
-                    task={assignment}
-                    onToggle={onToggleTask}
-                    onDelete={onDeleteTask}
-                    onUpdate={onUpdateTask}
-                    onAddSubtask={onAddSubtask}
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No assignments yet
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Create your first assignment to get started with coursework management
+              </p>
+              <button
+                onClick={() => setIsFormOpen(true)}
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Add Assignment
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Calendar View */
+        <AssignmentCalendarView
+          tasks={tasks}
+          activeListName={activeListName}
+          onToggleTask={onToggleTask}
+          onDeleteTask={onDeleteTask}
+          onUpdateTask={onUpdateTask}
+          onAddSubtask={onAddSubtask}
+          onAddTask={handleAddAssignment}
+        />
+      )}
+    </div>
+  );
+}
                   />
                 ))}
               </div>

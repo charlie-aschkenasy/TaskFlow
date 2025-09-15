@@ -1,346 +1,371 @@
 import React, { useState } from 'react';
-import { 
-  Calendar, 
-  LayoutDashboard, 
-  List, 
-  LogOut, 
-  Menu, 
-  X,
-  User,
-  ChevronDown,
-  Settings,
-  Tag,
-  FolderOpen
-} from 'lucide-react';
-import { AlertTriangle } from 'lucide-react';
-import { ViewMode } from './types';
-import { useTasks } from './hooks/useTasks';
-import { useTaskLists } from './hooks/useTaskLists';
-import { useAuth } from './hooks/useAuth';
-import { Dashboard } from './components/Dashboard';
-import { TimeframeView } from './components/TimeframeView';
-import { CalendarView } from './components/CalendarView';
-import { TaskList } from './components/TaskList';
-import { TagView } from './components/TagView';
-import { ProjectView } from './components/ProjectView';
-import { PriorityView } from './components/PriorityView';
-import { GlobalScratchpad } from './components/GlobalScratchpad';
-import { FloatingScratchpadButton } from './components/FloatingScratchpadButton';
-import { CompactListSelector } from './components/CompactListSelector';
-import { Auth } from './components/Auth';
-import { SettingsPage } from './pages/SettingsPage';
-import { ToggleSwitch } from './components/ToggleSwitch';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { Task } from '../types';
+import { sortTasks } from '../utils/taskUtils';
+import { TaskItem } from './TaskItem';
+import { TaskForm } from './TaskForm';
 
-export default function App() {
-  const { user, signOut } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
-  const [viewDropdownOpen, setViewDropdownOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
-  const [showScratchpad, setShowScratchpad] = useState(false);
-  
-  const { 
-    taskLists, 
-    activeListId, 
-    setActiveListId, 
-    addTaskList, 
-    updateTaskList, 
-    deleteTaskList, 
-    getTaskListById,
-    moveTasksToList
-  } = useTaskLists();
-  
-  const {
-    addTask,
-    addSubtask,
-    updateTask,
-    deleteTask,
-    toggleTask,
-    getAllTasks,
-    reorderTasks,
-    moveTaskToList,
-  } = useTasks(activeListId);
+interface CalendarViewProps {
+  tasks: Task[];
+  activeListName?: string;
+  onToggleTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => void;
+  onAddSubtask: (parentId: string, subtask: any) => void;
+  onAddTask: (task: any, listId?: string) => void;
+}
 
-  const tasks = getAllTasks();
-  
-  // Filter tasks based on completed toggle
-  const visibleTasks = showCompletedTasks 
-    ? tasks 
-    : tasks.filter(task => !task.completed);
-  
-  const activeTaskList = getTaskListById(activeListId);
-  const activeListName = activeTaskList?.name;
+export function CalendarView({
+  tasks,
+  activeListName,
+  onToggleTask,
+  onDeleteTask,
+  onUpdateTask,
+  onAddSubtask,
+  onAddTask,
+}: CalendarViewProps) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
-  if (!user) {
-    return <Auth />;
-  }
-
-  // Show settings page
-  if (showSettings) {
-    return <SettingsPage onBack={() => setShowSettings(false)} />;
-  }
-  const handleSignOut = async () => {
-    await signOut();
+  // Get all tasks including subtasks for calendar display
+  const getAllTasksIncludingSubtasks = (taskList: Task[]): Task[] => {
+    const allTasks: Task[] = [];
+    const flatten = (tasks: Task[]) => {
+      tasks.forEach(task => {
+        allTasks.push(task);
+        flatten(task.subtasks);
+      });
+    };
+    flatten(taskList);
+    return allTasks;
   };
 
-  const handleDeleteList = (listId: string) => {
-    // Move all tasks from the deleted list to Personal list
-    const personalList = taskLists.find(list => list.name === 'Personal');
-    if (personalList) {
-      moveTasksToList(listId, personalList.id);
+  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
+  const tasksWithDueDates = allTasksWithSubtasks.filter(task => {
+    console.log('Task:', task.title, 'Due Date:', task.dueDate, 'Type:', typeof task.dueDate);
+    return task.dueDate && task.dueDate.trim() !== '';
+  });
+
+  console.log('All tasks:', allTasksWithSubtasks.length);
+  console.log('Tasks with due dates:', tasksWithDueDates.length);
+  console.log('Sample task with due date:', tasksWithDueDates[0]);
+
+  // Calendar helper functions
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const formatDateKey = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const getTasksForDate = (dateStr: string) => {
+    const dateTasks = tasksWithDueDates.filter(task => {
+      const taskDueDate = task.dueDate;
+      if (!taskDueDate) return false;
+      
+      // Handle both full ISO dates and date-only strings
+      const taskDateStr = taskDueDate.includes('T') 
+        ? taskDueDate.split('T')[0] 
+        : taskDueDate;
+      
+      return taskDateStr === dateStr;
+    });
+    return sortTasks(dateTasks, { primary: 'createdAt', primaryAscending: false, secondaryAscending: true });
+  };
+
+  const isToday = (dateStr: string) => {
+    return dateStr === formatDateKey(new Date());
+  };
+
+  const isOverdue = (dateStr: string) => {
+    return new Date(dateStr) < new Date() && dateStr !== formatDateKey(new Date());
+  };
+
+  // Navigation functions
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDate(formatDateKey(new Date()));
+  };
+
+  // Generate calendar days
+  const generateCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentDate);
+    const firstDay = getFirstDayOfMonth(currentDate);
+    const days = [];
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
     }
-    deleteTaskList(listId);
+
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      days.push(date);
+    }
+
+    return days;
   };
 
-  const navigation = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
-    { id: 'all', name: 'All Tasks', icon: List },
-    { id: 'priority', name: 'Priority View', icon: AlertTriangle },
-    { id: 'tags', name: 'Tags View', icon: Tag },
-    { id: 'projects', name: 'Projects View', icon: FolderOpen },
-    { id: 'calendar', name: 'Calendar', icon: Calendar },
-    { id: 'daily', name: 'Daily', icon: Calendar },
-    { id: 'weekly', name: 'Weekly', icon: Calendar },
-    { id: 'monthly', name: 'Monthly', icon: Calendar },
-    { id: 'yearly', name: 'Yearly', icon: Calendar },
+  const calendarDays = generateCalendarDays();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const currentViewItem = navigation.find(item => item.id === currentView);
-
-  const renderContent = () => {
-    switch (currentView) {
-      case 'dashboard':
-        return (
-          <Dashboard
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-          />
-        );
-      case 'daily':
-      case 'weekly':
-      case 'monthly':
-      case 'yearly':
-        return (
-          <TimeframeView
-            timeframe={currentView}
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            activeListId={activeListId}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-            onReorderTasks={reorderTasks}
-          />
-        );
-      case 'calendar':
-        return (
-          <CalendarView
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-          />
-        );
-      case 'tags':
-        return (
-          <TagView
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-          />
-        );
-      case 'projects':
-        return (
-          <ProjectView
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-          />
-        );
-      case 'priority':
-        return (
-          <PriorityView
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-          />
-        );
-      case 'all':
-      default:
-        return (
-          <TaskList
-            tasks={visibleTasks}
-            activeListName={activeListName}
-            activeListId={activeListId}
-            onToggleTask={toggleTask}
-            onDeleteTask={deleteTask}
-            onUpdateTask={updateTask}
-            onAddSubtask={addSubtask}
-            onAddTask={addTask}
-            onReorderTasks={reorderTasks}
-            onMoveTaskToList={moveTaskToList}
-            allTasksForFilters={tasks}
-          />
-        );
-    }
-  };
+  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Top Navigation Bar */}
-      <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">T</span>
-              </div>
-              <h1 className="font-semibold text-gray-900">TaskFlow</h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600">
-              {tasks.length} total tasks
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                <User size={16} className="text-gray-600" />
-              </div>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="text-gray-400 hover:text-blue-500 transition-colors"
-                title="Settings"
-              >
-                <Settings size={16} />
-              </button>
-              <button
-                onClick={handleSignOut}
-                className="text-gray-400 hover:text-red-500 transition-colors"
-                title="Sign out"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          {activeListName ? `${activeListName} Calendar` : 'Calendar View'}
+        </h2>
+        <p className="text-gray-600 mb-4">
+          {activeListName 
+            ? `Visual overview of your ${activeListName.toLowerCase()} tasks with due dates`
+            : 'Visual overview of all your tasks with due dates'
+          }
+        </p>
       </div>
 
-      <div className="flex flex-1">
-        {/* Main Content */}
-        <div className="flex-1">
-          <main className="p-6">
-            {/* View and List Selector Dropdowns */}
-            <div className="flex flex-col gap-4 mb-6">
-              {/* View Selector Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setViewDropdownOpen(!viewDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
-                >
-                  {currentViewItem && <currentViewItem.icon size={18} />}
-                  <span className="font-medium">{currentViewItem?.name}</span>
-                  <ChevronDown size={16} className={`transition-transform ${viewDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Quick Add Task */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Task</h3>
+            <TaskForm
+              onSubmit={onAddTask}
+              onCancel={() => setIsFormOpen(false)}
+              defaultTimeFrame="daily"
+              isOpen={isFormOpen}
+              onToggle={() => setIsFormOpen(!isFormOpen)}
+            />
+          </div>
 
-                {viewDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                    {navigation.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = currentView === item.id;
-                      
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setCurrentView(item.id as ViewMode);
-                            setViewDropdownOpen(false);
-                          }}
-                          className={`
-                            w-full flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors text-left
-                            ${isActive 
-                              ? 'bg-blue-50 text-blue-700' 
-                              : 'text-gray-700 hover:bg-gray-50'
-                            }
-                            ${item === navigation[0] ? 'rounded-t-lg' : ''}
-                            ${item === navigation[navigation.length - 1] ? 'rounded-b-lg' : ''}
-                          `}
-                        >
-                          <Icon size={18} />
-                          {item.name}
-                        </button>
-                      );
+          {/* Selected Date Tasks */}
+          {selectedDate && (
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="p-4 border-b">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon size={18} className="text-blue-500" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {new Date(selectedDate).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
                     })}
+                  </h3>
+                </div>
+                {isToday(selectedDate) && (
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                    Today
+                  </span>
+                )}
+                {isOverdue(selectedDate) && (
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                    Overdue
+                  </span>
+                )}
+              </div>
+              
+              <div className="p-4 max-h-96 overflow-y-auto">
+                {selectedDateTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                      <CalendarIcon size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 text-sm">No tasks due on this date</p>
+                    <button
+                      onClick={() => setIsFormOpen(true)}
+                      className="mt-2 text-blue-500 hover:text-blue-600 text-sm font-medium"
+                    >
+                      Add a task
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        {selectedDateTasks.length} task{selectedDateTasks.length !== 1 ? 's' : ''}
+                      </span>
+                      <div className="flex gap-2 text-xs">
+                        <span className="text-green-600">
+                          {selectedDateTasks.filter(t => t.completed).length} completed
+                        </span>
+                        <span className="text-yellow-600">
+                          {selectedDateTasks.filter(t => !t.completed).length} pending
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {selectedDateTasks.map(task => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        onToggle={onToggleTask}
+                        onDelete={onDeleteTask}
+                        onUpdate={onUpdateTask}
+                        onAddSubtask={onAddSubtask}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* List Selector Dropdown */}
-              <div className="w-64">
-                <CompactListSelector
-                  taskLists={taskLists}
-                  activeListId={activeListId}
-                  onSelectList={setActiveListId}
-                  onAddList={addTaskList}
-                  onUpdateList={updateTaskList}
-                  onDeleteList={handleDeleteList}
-                />
+          {/* Calendar Legend */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Legend</h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></div>
+                <span>Today</span>
               </div>
-              
-              {/* Global Completed Tasks Toggle */}
-              <div className="w-64">
-                <ToggleSwitch
-                  checked={showCompletedTasks}
-                  onChange={setShowCompletedTasks}
-                  label="Show completed tasks"
-                  description="Toggle visibility of completed tasks across all views"
-                />
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-50 border border-blue-500 rounded"></div>
+                <span>Selected Date</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-100 rounded"></div>
+                <span>Completed Tasks</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-100 rounded"></div>
+                <span>Overdue Tasks</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-gray-100 rounded"></div>
+                <span>Pending Tasks</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-lg shadow-sm border">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </h3>
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Today
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPreviousMonth}
+                  className="p-2 hover:bg-gray-100 rounded transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={goToNextMonth}
+                  className="p-2 hover:bg-gray-100 rounded transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
               </div>
             </div>
 
-            {/* Click outside to close view dropdown */}
-            {viewDropdownOpen && (
-              <div 
-                className="fixed inset-0 z-40"
-                onClick={() => setViewDropdownOpen(false)}
-              />
-            )}
+            {/* Calendar Grid */}
+            <div className="p-4">
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {dayNames.map(day => (
+                  <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                    {day}
+                  </div>
+                ))}
+              </div>
 
-            {renderContent()}
-          </main>
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((date, index) => {
+                  if (!date) {
+                    return <div key={index} className="p-2 h-24"></div>;
+                  }
+
+                  const dateStr = formatDateKey(date);
+                  const dayTasks = getTasksForDate(dateStr);
+                  const isSelected = selectedDate === dateStr;
+                  const isTodayDate = isToday(dateStr);
+                  const isOverdueDate = isOverdue(dateStr);
+
+                  return (
+                    <button
+                      key={dateStr}
+                      onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                      className={`p-2 h-24 border rounded-lg text-left transition-all hover:shadow-md ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50'
+                          : isTodayDate
+                          ? 'border-blue-300 bg-blue-100'
+                          : 'border-gray-200 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className={`text-sm font-medium mb-1 ${
+                        isTodayDate ? 'text-blue-600' : 'text-gray-900'
+                      }`}>
+                        {date.getDate()}
+                      </div>
+                      
+                      {dayTasks.length > 0 && (
+                        <div className="space-y-1">
+                          {dayTasks.slice(0, 2).map(task => (
+                            <div
+                              key={task.id}
+                              className={`text-xs px-1 py-0.5 rounded truncate ${
+                                task.completed
+                                  ? 'bg-green-100 text-green-700'
+                                  : isOverdueDate
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                              title={task.title}
+                            >
+                              {task.title}
+                            </div>
+                          ))}
+                          {dayTasks.length > 2 && (
+                            <div className="text-xs text-gray-500">
+                              +{dayTasks.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
-        
-        {/* Floating Scratchpad Button */}
-        <FloatingScratchpadButton onClick={() => setShowScratchpad(true)} />
-        
-        {/* Global Scratchpad Modal */}
-        <GlobalScratchpad 
-          isOpen={showScratchpad} 
-          onClose={() => setShowScratchpad(false)} 
-        />
       </div>
     </div>
   );

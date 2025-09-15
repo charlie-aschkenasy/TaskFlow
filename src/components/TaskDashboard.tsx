@@ -6,7 +6,6 @@ import { getTaskCountsByTimeframe, sortTasks } from '../utils/taskUtils';
 import { TaskItem } from './TaskItem';
 import { TaskForm } from './TaskForm';
 
-interface DashboardProps {
 interface TaskDashboardProps {
   tasks: Task[];
   activeListName?: string;

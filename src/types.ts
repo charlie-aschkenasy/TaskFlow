@@ -354,8 +354,12 @@ export function CalendarView({
                           )}
                         </div>
                       )}
+                    }
                     </button>
                   );
+                }
+                )
+                }
                 })}
               </div>
             </div>
@@ -364,4 +368,6 @@ export function CalendarView({
       </div>
     </div>
   );
+}
+  )
 }

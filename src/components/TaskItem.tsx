@@ -110,16 +110,9 @@ export function TaskItem({
         <div className="flex-1 min-w-0">
           {/* Task title and priority */}
           <div className="flex items-center gap-2 mb-2">
-            {/* Type indicator */}
-            <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-              task.type === 'event' 
-                ? 'bg-purple-100 text-purple-700' 
-                : task.type === 'assignment'
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-blue-100 text-blue-700'
-            }`}>
+            {/* Type indicator - simple emoji */}
+            <span className="text-gray-500 mr-2">
               {task.type === 'event' ? '📅' : task.type === 'assignment' ? '📚' : '📝'}
-              {task.type === 'event' ? 'Event' : task.type === 'assignment' ? 'Assignment' : 'Task'}
             </span>
             <h3 className={`font-medium transition-all ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
               {task.title}

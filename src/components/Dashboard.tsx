@@ -26,7 +26,11 @@ export function Dashboard({
   onAddTask
 }: DashboardProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const counts = getTaskCountsByTimeframe(tasks);
+  
+  // Filter to show only tasks (not events or assignments) in Dashboard
+  const tasksOnly = tasks.filter(task => task.type === 'task');
+  
+  const counts = getTaskCountsByTimeframe(tasksOnly);
   
   // Helper function to get all tasks including subtasks
   const getAllTasksIncludingSubtasks = (taskList: Task[]): Task[] => {
@@ -41,7 +45,7 @@ export function Dashboard({
     return allTasks;
   };
 
-  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasks);
+  const allTasksWithSubtasks = getAllTasksIncludingSubtasks(tasksOnly);
   const completedTasks = allTasksWithSubtasks.filter(task => task.completed);
   const pendingTasks = allTasksWithSubtasks.filter(task => !task.completed);
   const overdueTask = allTasksWithSubtasks.filter(task => {
@@ -56,28 +60,28 @@ export function Dashboard({
       icon: Clock,
       color: 'bg-blue-500',
       tasks: sortTasks(tasks.filter(task => task.timeFrame === 'daily'), 'dueDate', true),
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'daily'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(tasksOnly.filter(task => task.timeFrame === 'daily'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
       title: 'Weekly Tasks', 
       count: counts.weekly,
       icon: Calendar,
       color: 'bg-green-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'weekly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(tasksOnly.filter(task => task.timeFrame === 'weekly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
       title: 'Monthly Tasks',
       count: counts.monthly,
       icon: Target,
       color: 'bg-purple-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'monthly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(tasksOnly.filter(task => task.timeFrame === 'monthly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
       title: 'Yearly Tasks',
       count: counts.yearly,
       icon: TrendingUp,
       color: 'bg-orange-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'yearly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
+      tasks: sortTasks(tasksOnly.filter(task => task.timeFrame === 'yearly'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
   ];
 

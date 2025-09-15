@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, Plus } from 'lucide-react';
 import { Task } from '../types';
 import { TaskItem } from './TaskItem';
-import { TaskForm } from './TaskForm';
+import { EventForm } from './EventForm';
 import { sortTasks, getAllTasksIncludingSubtasks } from '../utils/taskUtils';
 
 interface EventViewProps {
@@ -115,8 +115,8 @@ export function EventView({
       {/* Quick Add Event */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Event</h3>
-        <TaskForm
-          onSubmit={handleAddEvent}
+        <EventForm
+          onSubmit={onAddTask}
           onCancel={() => setIsFormOpen(false)}
           isOpen={isFormOpen}
           onToggle={() => setIsFormOpen(!isFormOpen)}

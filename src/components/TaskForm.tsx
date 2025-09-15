@@ -28,7 +28,6 @@ export function TaskForm({
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [taskType, setTaskType] = useState<'task' | 'event' | 'assignment'>('task');
   const [timeFrame, setTimeFrame] = useState(defaultTimeFrame);
   const [project, setProject] = useState(projects[0]?.id || '');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -45,7 +44,6 @@ export function TaskForm({
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setTaskType('task');
     setTimeFrame(defaultTimeFrame);
     setProject(projects[0]?.id || '');
     setPriority('medium');
@@ -68,7 +66,7 @@ export function TaskForm({
       title: title.trim(),
       description: description.trim() || undefined,
       completed: false,
-      type: taskType,
+      type: 'task' as const,
       timeFrame,
       project,
       listId: '', // Will be set by parent component
@@ -148,21 +146,6 @@ export function TaskForm({
           />
         </div>
 
-        {/* Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Type
-          </label>
-          <select
-            value={taskType}
-            onChange={(e) => setTaskType(e.target.value as 'task' | 'event' | 'assignment')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="task">📝 Task</option>
-            <option value="event">📅 Event</option>
-            <option value="assignment">📚 Assignment</option>
-          </select>
-        </div>
 
         {/* Description */}
         <div>

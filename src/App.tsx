@@ -220,7 +220,7 @@ export default function App() {
       default:
         return (
           <TaskList
-            tasks={visibleTasks}
+            tasks={visibleTasks.filter(task => task.type === 'task')}
             activeListName={activeListName}
             activeListId={activeListId}
             onToggleTask={toggleTask}
@@ -230,7 +230,7 @@ export default function App() {
             onAddTask={addTask}
             onReorderTasks={reorderTasks}
             onMoveTaskToList={moveTaskToList}
-            allTasksForFilters={tasks}
+            allTasksForFilters={visibleTasks.filter(task => task.type === 'task')}
           />
         );
     }

@@ -1,257 +1,347 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  CheckSquare, 
   Calendar, 
-  Tag, 
-  FolderOpen, 
-  AlertTriangle, 
-  Settings,
-  Menu,
+  LayoutDashboard, 
+  List, 
+  LogOut, 
+  Menu, 
   X,
-  CalendarDays
+  User,
+  ChevronDown,
+  Settings,
+  Tag,
+  FolderOpen
 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { ViewMode } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useTaskLists } from './hooks/useTaskLists';
-import { useProjects } from './hooks/useProjects';
-import { useTags } from './hooks/useTags';
 import { useAuth } from './hooks/useAuth';
 import { Dashboard } from './components/Dashboard';
+import { TimeframeView } from './components/TimeframeView';
+import { CalendarView } from './components/CalendarView';
 import { TaskList } from './components/TaskList';
 import { TagView } from './components/TagView';
 import { ProjectView } from './components/ProjectView';
 import { PriorityView } from './components/PriorityView';
-import { CalendarView } from './components/CalendarView';
-import { EventsAssignmentsView } from './components/EventsAssignmentsView';
-import { SettingsPage } from './pages/SettingsPage';
-import { Auth } from './components/Auth';
+import { GlobalScratchpad } from './components/GlobalScratchpad';
 import { FloatingScratchpadButton } from './components/FloatingScratchpadButton';
+import { CompactListSelector } from './components/CompactListSelector';
+import { Auth } from './components/Auth';
+import { SettingsPage } from './pages/SettingsPage';
+import { ToggleSwitch } from './components/ToggleSwitch';
 
-type ViewMode = 'dashboard' | 'tasks' | 'tags' | 'projects' | 'priority' | 'calendar' | 'events-assignments' | 'settings';
-
-function App() {
+export default function App() {
+  const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user, loading } = useAuth();
+  const [viewDropdownOpen, setViewDropdownOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [showScratchpad, setShowScratchpad] = useState(false);
+  
+  const { 
+    taskLists, 
+    activeListId, 
+    setActiveListId, 
+    addTaskList, 
+    updateTaskList, 
+    deleteTaskList, 
+    getTaskListById,
+    moveTasksToList
+  } = useTaskLists();
   
   const {
-    tasks,
     addTask,
+    addSubtask,
     updateTask,
     deleteTask,
     toggleTask,
-    addSubtask,
-    loading: tasksLoading,
-    error: tasksError
-  } = useTasks();
+    getAllTasks,
+    reorderTasks,
+    moveTaskToList,
+  } = useTasks(activeListId);
 
-  const {
-    taskLists,
-    activeListId,
-    setActiveListId,
-    addTaskList,
-    updateTaskList,
-    deleteTaskList,
-    loading: listsLoading
-  } = useTaskLists();
-
-  const {
-    projects,
-    activeProjectId,
-    setActiveProjectId,
-    addProject,
-    updateProject,
-    deleteProject,
-    loading: projectsLoading
-  } = useProjects();
-
-  const {
-    tags,
-    addTag,
-    updateTag,
-    deleteTag,
-    loading: tagsLoading
-  } = useTags();
-
-  // Close sidebar when view changes (mobile)
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [currentView]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading TaskFlow...</p>
-        </div>
-      </div>
-    );
-  }
+  const tasks = getAllTasks();
+  
+  // Filter tasks based on completed toggle
+  const visibleTasks = showCompletedTasks 
+    ? tasks 
+    : tasks.filter(task => !task.completed);
+  
+  const activeTaskList = getTaskListById(activeListId);
+  const activeListName = activeTaskList?.name;
 
   if (!user) {
     return <Auth />;
   }
 
-  const activeList = taskLists.find(list => list.id === activeListId);
-  const activeProject = projects.find(project => project.id === activeProjectId);
+  // Show settings page
+  if (showSettings) {
+    return <SettingsPage onBack={() => setShowSettings(false)} />;
+  }
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
-  const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: CheckSquare },
-    { id: 'tasks', label: 'All Tasks', icon: CheckSquare },
-    { id: 'tags', label: 'Tags View', icon: Tag },
-    { id: 'projects', label: 'Projects View', icon: FolderOpen },
-    { id: 'events-assignments', label: 'Events & Assignments', icon: CalendarDays },
-    { id: 'priority', label: 'Priority View', icon: AlertTriangle },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const handleDeleteList = (listId: string) => {
+    // Move all tasks from the deleted list to Personal list
+    const personalList = taskLists.find(list => list.name === 'Personal');
+    if (personalList) {
+      moveTasksToList(listId, personalList.id);
+    }
+    deleteTaskList(listId);
+  };
+
+  const navigation = [
+    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
+    { id: 'all', name: 'All Tasks', icon: List },
+    { id: 'priority', name: 'Priority View', icon: AlertTriangle },
+    { id: 'tags', name: 'Tags View', icon: Tag },
+    { id: 'projects', name: 'Projects View', icon: FolderOpen },
+    { id: 'calendar', name: 'Calendar', icon: Calendar },
+    { id: 'daily', name: 'Daily', icon: Calendar },
+    { id: 'weekly', name: 'Weekly', icon: Calendar },
+    { id: 'monthly', name: 'Monthly', icon: Calendar },
+    { id: 'yearly', name: 'Yearly', icon: Calendar },
   ];
 
-  const renderCurrentView = () => {
-    const commonProps = {
-      tasks,
-      onToggleTask: toggleTask,
-      onDeleteTask: deleteTask,
-      onUpdateTask: updateTask,
-      onAddSubtask: addSubtask,
-      onAddTask: addTask,
-      activeListName: activeList?.name,
-      activeProjectName: activeProject?.name,
-    };
+  const currentViewItem = navigation.find(item => item.id === currentView);
 
+  const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
         return (
           <Dashboard
-            {...commonProps}
-            taskLists={taskLists}
-            activeListId={activeListId}
-            onSetActiveListId={setActiveListId}
-            onAddTaskList={addTaskList}
-            onUpdateTaskList={updateTaskList}
-            onDeleteTaskList={deleteTaskList}
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSetActiveProjectId={setActiveProjectId}
-            onAddProject={addProject}
-            onUpdateProject={updateProject}
-            onDeleteProject={deleteProject}
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
           />
         );
-      case 'tasks':
+      case 'daily':
+      case 'weekly':
+      case 'monthly':
+      case 'yearly':
         return (
-          <TaskList
-            {...commonProps}
-            taskLists={taskLists}
+          <TimeframeView
+            timeframe={currentView}
+            tasks={visibleTasks}
+            activeListName={activeListName}
             activeListId={activeListId}
-            onSetActiveListId={setActiveListId}
-            onAddTaskList={addTaskList}
-            onUpdateTaskList={updateTaskList}
-            onDeleteTaskList={deleteTaskList}
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSetActiveProjectId={setActiveProjectId}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
+            onReorderTasks={reorderTasks}
+          />
+        );
+      case 'calendar':
+        return (
+          <CalendarView
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
           />
         );
       case 'tags':
         return (
           <TagView
-            {...commonProps}
-            tags={tags}
-            onAddTag={addTag}
-            onUpdateTag={updateTag}
-            onDeleteTag={deleteTag}
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
           />
         );
       case 'projects':
         return (
           <ProjectView
-            {...commonProps}
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSetActiveProjectId={setActiveProjectId}
-            onAddProject={addProject}
-            onUpdateProject={updateProject}
-            onDeleteProject={deleteProject}
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
           />
         );
-      case 'events-assignments':
-        return <EventsAssignmentsView {...commonProps} />;
       case 'priority':
-        return <PriorityView {...commonProps} />;
-      case 'calendar':
-        return <CalendarView {...commonProps} />;
-      case 'settings':
-        return <SettingsPage />;
+        return (
+          <PriorityView
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
+          />
+        );
+      case 'all':
       default:
-        return <Dashboard {...commonProps} />;
+        return (
+          <TaskList
+            tasks={visibleTasks}
+            activeListName={activeListName}
+            activeListId={activeListId}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onUpdateTask={updateTask}
+            onAddSubtask={addSubtask}
+            onAddTask={addTask}
+            onReorderTasks={reorderTasks}
+            onMoveTaskToList={moveTaskToList}
+            allTasksForFilters={tasks}
+          />
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
-      >
-        {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
-
-      {/* Sidebar */}
-      <div className={`
-        fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <div className="p-6 border-b">
-          <h1 className="text-2xl font-bold text-gray-900">TaskFlow</h1>
-          <p className="text-sm text-gray-600 mt-1">Organize your life</p>
-        </div>
-
-        <nav className="p-4 space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setCurrentView(item.id as ViewMode)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  currentView === item.id
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Icon size={18} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-30 bg-black bg-opacity-50"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main content */}
-      <div className="flex-1 lg:ml-0">
-        <main className="p-6 pt-16 lg:pt-6">
-          {tasksError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700">Error loading tasks: {tasksError}</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Top Navigation Bar */}
+      <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">T</span>
+              </div>
+              <h1 className="font-semibold text-gray-900">TaskFlow</h1>
             </div>
-          )}
-          
-          {renderCurrentView()}
-        </main>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-600">
+              {tasks.length} total tasks
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                <User size={16} className="text-gray-600" />
+              </div>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="text-gray-400 hover:text-blue-500 transition-colors"
+                title="Settings"
+              >
+                <Settings size={16} />
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <FloatingScratchpadButton />
+      <div className="flex flex-1">
+        {/* Main Content */}
+        <div className="flex-1">
+          <main className="p-6">
+            {/* View and List Selector Dropdowns */}
+            <div className="flex flex-col gap-4 mb-6">
+              {/* View Selector Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setViewDropdownOpen(!viewDropdownOpen)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors"
+                >
+                  {currentViewItem && <currentViewItem.icon size={18} />}
+                  <span className="font-medium">{currentViewItem?.name}</span>
+                  <ChevronDown size={16} className={`transition-transform ${viewDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {viewDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    {navigation.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = currentView === item.id;
+                      
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setCurrentView(item.id as ViewMode);
+                            setViewDropdownOpen(false);
+                          }}
+                          className={`
+                            w-full flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors text-left
+                            ${isActive 
+                              ? 'bg-blue-50 text-blue-700' 
+                              : 'text-gray-700 hover:bg-gray-50'
+                            }
+                            ${item === navigation[0] ? 'rounded-t-lg' : ''}
+                            ${item === navigation[navigation.length - 1] ? 'rounded-b-lg' : ''}
+                          `}
+                        >
+                          <Icon size={18} />
+                          {item.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* List Selector Dropdown */}
+              <div className="w-64">
+                <CompactListSelector
+                  taskLists={taskLists}
+                  activeListId={activeListId}
+                  onSelectList={setActiveListId}
+                  onAddList={addTaskList}
+                  onUpdateList={updateTaskList}
+                  onDeleteList={handleDeleteList}
+                />
+              </div>
+              
+              {/* Global Completed Tasks Toggle */}
+              <div className="w-64">
+                <ToggleSwitch
+                  checked={showCompletedTasks}
+                  onChange={setShowCompletedTasks}
+                  label="Show completed tasks"
+                  description="Toggle visibility of completed tasks across all views"
+                />
+              </div>
+            </div>
+
+            {/* Click outside to close view dropdown */}
+            {viewDropdownOpen && (
+              <div 
+                className="fixed inset-0 z-40"
+                onClick={() => setViewDropdownOpen(false)}
+              />
+            )}
+
+            {renderContent()}
+          </main>
+        </div>
+        
+        {/* Floating Scratchpad Button */}
+        <FloatingScratchpadButton onClick={() => setShowScratchpad(true)} />
+        
+        {/* Global Scratchpad Modal */}
+        <GlobalScratchpad 
+          isOpen={showScratchpad} 
+          onClose={() => setShowScratchpad(false)} 
+        />
+      </div>
     </div>
   );
 }
-
-export default App;

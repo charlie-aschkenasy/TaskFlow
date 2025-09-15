@@ -322,19 +322,11 @@ export function CalendarView({
                       key={dateStr}
                       onClick={() => setSelectedDate(isSelected ? null : dateStr)}
                       className={`p-2 h-24 border rounded-lg text-left transition-all hover:shadow-md ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-50'
-                          : isTodayDate
-                          ? 'border-blue-300 bg-blue-25'
                         : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                     <div className={`text-sm font-medium mb-1 ${
                       isTodayDate ? 'text-blue-600' : 'text-gray-900'
-                    }
-                    <div className={`text-sm font-medium mb-1 ${
-                      isTodayDate ? 'text-blue-600' : 'text-gray-900'
-                    }`}>
                         {date.getDate()}
                       </div>
                       
@@ -364,9 +356,6 @@ export function CalendarView({
                       )}
                     </button>
                   );
-                }
-                )
-                }
                 })}
               </div>
             </div>
@@ -375,6 +364,4 @@ export function CalendarView({
       </div>
     </div>
   );
-}
-  )
 }

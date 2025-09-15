@@ -391,24 +391,17 @@ export function useTasks(activeListId: string = 'all') {
   };
 
   const getAllTasks = (filterByList: boolean = true): Task[] => {
-  }, typeFilter?: Array<'task' | 'event' | 'assignment'>): Task[] => {
     // Only return top-level tasks, not subtasks
     const topLevelTasks = tasks;
     
-    // Apply type filter if provided
-    let filteredTasks = topLevelTasks;
-    if (typeFilter && typeFilter.length > 0) {
-      filteredTasks = topLevelTasks.filter(task => typeFilter.includes(task.type));
-    }
-    
     if (!filterByList || activeListId === 'all') {
-      return filteredTasks;
+      return topLevelTasks;
     }
     
     // Filter tasks by the active list ID
-    const listFilteredTasks = filteredTasks.filter(task => task.listId === activeListId);
+    const listFilteredTasks = topLevelTasks.filter(task => task.listId === activeListId);
     console.log(`Filtering tasks for listId: ${activeListId}`, {
-      totalTasks: filteredTasks.length,
+      totalTasks: topLevelTasks.length,
       filteredTasks: listFilteredTasks.length,
       taskListIds: topLevelTasks.map(t => ({ id: t.id, title: t.title, listId: t.listId }))
     });
@@ -462,8 +455,6 @@ export function useTasks(activeListId: string = 'all') {
     getTaskById,
     getAllTasks,
     moveTasksToList,
-    reorderTasks,
-    moveTaskToList,
     reorderTasks,
     moveTaskToList,
   };

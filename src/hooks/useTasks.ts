@@ -93,6 +93,7 @@ export function useTasks(activeListId: string = 'all') {
         title: task.title,
         description: task.description,
         completed: task.completed,
+        type: task.type || 'task', // Default to 'task' for backward compatibility
         timeFrame: task.time_frame,
         project: task.project,
         listId: task.list_id,
@@ -157,6 +158,7 @@ export function useTasks(activeListId: string = 'all') {
       title: task.title,
       description: task.description,
       completed: task.completed,
+      type: task.type,
       time_frame: task.timeFrame,
       project: task.project,
       list_id: task.listId,
@@ -268,6 +270,7 @@ export function useTasks(activeListId: string = 'all') {
     
     const newTask: Task = {
       ...task,
+      type: task.type || 'task', // Default to 'task' if not specified
       tags: task.tags || [],
       attachments: task.attachments || [],
       reminders: task.reminders || [],
@@ -291,6 +294,7 @@ export function useTasks(activeListId: string = 'all') {
     
     const newSubtask: Task = {
       ...subtask,
+      type: subtask.type || 'task', // Default to 'task' if not specified
       tags: subtask.tags || [],
       attachments: subtask.attachments || [],
       reminders: subtask.reminders || [],

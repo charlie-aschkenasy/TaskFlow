@@ -391,8 +391,7 @@ export function useTasks(activeListId: string = 'all') {
   };
 
   const getAllTasks = (filterByList: boolean = true): Task[] => {
-  }
-  const getAllTasks = (filterByList: boolean = true, typeFilter?: Array<'task' | 'event' | 'assignment'>): Task[] => {
+  }, typeFilter?: Array<'task' | 'event' | 'assignment'>): Task[] => {
     // Only return top-level tasks, not subtasks
     const topLevelTasks = tasks;
     

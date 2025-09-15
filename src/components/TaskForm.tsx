@@ -113,6 +113,7 @@ export function AssignmentView({
 
       {/* Quick Add Assignment */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Add Assignment</h3>
         <TaskForm
           onSubmit={handleAddAssignment}
           onCancel={() => setIsFormOpen(false)}

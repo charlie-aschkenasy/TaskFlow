@@ -13,7 +13,7 @@ export function RichTextEditor({ value, onChange, placeholder, readOnly = false 
   const modules = {
     toolbar: readOnly ? false : [
       [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline'],
+      ['bold', 'italic', 'underline', 'strike'],
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
       ['link'],
       [{ 'align': [] }],
@@ -23,7 +23,7 @@ export function RichTextEditor({ value, onChange, placeholder, readOnly = false 
 
   const formats = [
     'header',
-    'bold', 'italic', 'underline',
+    'bold', 'italic', 'underline', 'strike',
     'list', 'bullet',
     'link',
     'align'

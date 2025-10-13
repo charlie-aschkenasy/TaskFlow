@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
-import {
-  Calendar,
-  LayoutDashboard,
-  List,
-  LogOut,
-  Menu,
+import { 
+  Calendar, 
+  LayoutDashboard, 
+  List, 
+  LogOut, 
+  Menu, 
   X,
   User,
   ChevronDown,
   Settings,
   Tag,
   FolderOpen,
-  BookOpen,
-  StickyNote
+  BookOpen
 } from 'lucide-react';
 import { AlertTriangle } from 'lucide-react';
 import { ViewMode } from './types';
@@ -28,7 +27,6 @@ import { ProjectView } from './components/ProjectView';
 import { PriorityView } from './components/PriorityView';
 import { EventView } from './components/EventView';
 import { AssignmentView } from './components/AssignmentView';
-import { NotesView } from './components/NotesView';
 import { GlobalScratchpad } from './components/GlobalScratchpad';
 import { FloatingScratchpadButton } from './components/FloatingScratchpadButton';
 import { CompactListSelector } from './components/CompactListSelector';
@@ -101,7 +99,6 @@ export default function App() {
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
     { id: 'events', name: 'Events', icon: Calendar },
     { id: 'assignments', name: 'Assignments', icon: BookOpen },
-    { id: 'notes', name: 'Notes', icon: StickyNote },
     { id: 'all', name: 'All Tasks', icon: List },
     { id: 'calendar', name: 'Calendar', icon: Calendar },
     { id: 'daily', name: 'Daily', icon: Calendar },
@@ -215,8 +212,6 @@ export default function App() {
             onAddTask={addTask}
           />
         );
-      case 'notes':
-        return <NotesView />;
       case 'all':
       default:
         return (

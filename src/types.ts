@@ -57,7 +57,7 @@ export interface TaskList {
   icon: string;
 }
 
-export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'calendar' | 'tags' | 'projects' | 'priority' | 'events' | 'assignments' | 'notes';
+export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'calendar' | 'tags' | 'projects' | 'priority' | 'events' | 'assignments';
 
 export interface FilterState {
   timeFrame: string;

@@ -42,6 +42,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS note_sections (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name text NOT NULL,
+  color text DEFAULT '#3b82f6',
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
@@ -55,7 +56,8 @@ CREATE TABLE IF NOT EXISTS notes (
   section_id uuid REFERENCES note_sections(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  updated_at timestamptz DEFAULT now(),
+  order_index integer DEFAULT 0
 );
 
 -- Enable Row Level Security
@@ -119,6 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_note_sections_user_id ON note_sections(user_id);
 CREATE INDEX IF NOT EXISTS idx_note_sections_order_index ON note_sections(order_index);
 CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_notes_section_id ON notes(section_id);
+CREATE INDEX IF NOT EXISTS idx_notes_order_index ON notes(order_index);
 
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

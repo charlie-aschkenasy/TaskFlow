@@ -57,7 +57,7 @@ export interface TaskList {
   icon: string;
 }
 
-export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'calendar' | 'tags' | 'projects' | 'priority' | 'events' | 'assignments' | 'notes';
+export type ViewMode = 'all' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'dashboard' | 'calendar' | 'tags' | 'projects' | 'priority' | 'events' | 'assignments';
 
 export interface FilterState {
   timeFrame: string;
@@ -75,24 +75,4 @@ export interface SortConfig {
   primaryAscending: boolean;
   secondary?: SortOption;
   secondaryAscending: boolean;
-}
-
-export interface NoteSection {
-  id: string;
-  name: string;
-  color: string;
-  orderIndex: number;
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Note {
-  id: string;
-  content: string;
-  sectionId: string;
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
-  orderIndex: number;
 }

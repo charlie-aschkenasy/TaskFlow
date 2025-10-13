@@ -458,5 +458,7 @@ export function useTasks(activeListId: string = 'all') {
     moveTasksToList,
     reorderTasks,
     moveTaskToList,
+    reorderTasks,
+    moveTaskToList,
   };
 }

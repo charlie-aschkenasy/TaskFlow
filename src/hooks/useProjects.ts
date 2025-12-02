@@ -25,7 +25,7 @@ export function useProjects() {
         .from('projects')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .order('sort_order', { ascending: true });
 
       if (error) {
         console.error('Error loading projects:', error);
@@ -34,10 +34,11 @@ export function useProjects() {
 
       if (data.length === 0) {
         // Create default projects for new users
-        const defaultProjects = generateDefaultProjects().map(project => ({
+        const defaultProjects = generateDefaultProjects().map((project, index) => ({
           ...project,
           user_id: user.id,
           created_at: new Date().toISOString(),
+          sort_order: index + 1,
         }));
 
         const { error: insertError } = await supabase
@@ -61,12 +62,14 @@ export function useProjects() {
           setOtherProjectId(otherProject.id);
         } else {
           // Create the Other project if it doesn't exist
+          const maxSortOrder = Math.max(...data.map(p => (p as any).sort_order || 0), 0);
           const newOtherProject = {
             id: crypto.randomUUID(),
             name: 'Other',
             color: '#6B7280',
             user_id: user.id,
             created_at: new Date().toISOString(),
+            sort_order: maxSortOrder + 1,
           };
 
           const { error: insertError } = await supabase
@@ -104,7 +107,7 @@ export function useProjects() {
     };
   }, [user]);
 
-  const saveProjectToSupabase = async (project: Project) => {
+  const saveProjectToSupabase = async (project: Project & { sort_order?: number }) => {
     if (!user) return;
 
     const { error } = await supabase
@@ -115,6 +118,7 @@ export function useProjects() {
         color: project.color,
         user_id: user.id,
         created_at: new Date().toISOString(),
+        sort_order: project.sort_order,
       });
 
     if (error) {
@@ -125,10 +129,12 @@ export function useProjects() {
   const addProject = async (name: string, color: string) => {
     if (!user) return '';
 
-    const newProject: Project = {
+    const maxSortOrder = Math.max(...projects.map((p: any) => p.sort_order || 0), 0);
+    const newProject: Project & { sort_order: number } = {
       id: crypto.randomUUID(),
       name,
       color,
+      sort_order: maxSortOrder + 1,
     };
     setProjects(prev => [...prev, newProject]);
     await saveProjectToSupabase(newProject);
@@ -163,6 +169,29 @@ export function useProjects() {
     return projects.find(project => project.id === id);
   };
 
+  const reorderProjects = async (reorderedProjects: Project[]) => {
+    if (!user) return;
+
+    setProjects(reorderedProjects);
+
+    const updates = reorderedProjects.map((project, index) => ({
+      id: project.id,
+      name: project.name,
+      color: project.color,
+      user_id: user.id,
+      sort_order: index + 1,
+    }));
+
+    const { error } = await supabase
+      .from('projects')
+      .upsert(updates);
+
+    if (error) {
+      console.error('Error reordering projects:', error);
+      loadProjects();
+    }
+  };
+
   return {
     projects,
     otherProjectId,
@@ -170,5 +199,6 @@ export function useProjects() {
     updateProject,
     deleteProject,
     getProjectById,
+    reorderProjects,
   };
 }

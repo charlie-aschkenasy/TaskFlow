@@ -35,7 +35,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ToggleSwitch } from './components/ToggleSwitch';
 
 export default function App() {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
   const [viewDropdownOpen, setViewDropdownOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -73,6 +73,17 @@ export default function App() {
   
   const activeTaskList = getTaskListById(activeListId);
   const activeListName = activeTaskList?.name;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Auth />;

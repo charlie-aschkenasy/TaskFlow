@@ -188,7 +188,6 @@ export function useProjects() {
 
     if (error) {
       console.error('Error reordering projects:', error);
-      loadProjects();
     }
   };
 

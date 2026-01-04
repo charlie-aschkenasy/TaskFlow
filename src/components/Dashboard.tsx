@@ -59,7 +59,6 @@ export function Dashboard({
       count: counts.daily,
       icon: Clock,
       color: 'bg-blue-500',
-      tasks: sortTasks(tasks.filter(task => task.timeFrame === 'daily'), 'dueDate', true),
       tasks: sortTasks(tasksOnly.filter(task => task.timeFrame === 'daily'), { primary: 'dueDate', primaryAscending: true, secondaryAscending: true }),
     },
     {
